@@ -1,0 +1,52 @@
+version: '1.0'
+name: android-ci
+displayName: Android CI
+triggers:
+  push:
+    branches:
+      include:
+        - main
+        - develop
+  pr:
+    branches:
+      include:
+        - main
+variables:
+  GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true'
+strategy:
+  blocking: false
+stages:
+  - stage:
+      name: lint
+      displayName: 代码规范检查
+      strategy: naturally
+      trigger: auto
+      steps:
+        - step: build@shell
+          name: lint-check
+          displayName: 执行 Lint
+          commands:
+            - chmod +x gradlew
+            - ./gradlew lint
+  - stage:
+      name: unit-test
+      displayName: 单元测试
+      strategy: naturally
+      trigger: auto
+      steps:
+        - step: build@shell
+          name: run-tests
+          displayName: 执行单元测试
+          commands:
+            - ./gradlew testDebugUnitTest
+  - stage:
+      name: build-debug
+      displayName: 编译调试版
+      strategy: naturally
+      trigger: auto
+      steps:
+        - step: build@shell
+          name: assemble-debug
+          displayName: 编译 Debug APK
+          commands:
+            - ./gradlew assembleDebug

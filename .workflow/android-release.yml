@@ -1,0 +1,51 @@
+version: '1.0'
+name: android-release
+displayName: Android Release
+triggers:
+  push:
+    tags:
+      include:
+        - ^v.*
+variables:
+  GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true'
+strategy:
+  blocking: false
+stages:
+  - stage:
+      name: lint-test
+      displayName: 质量检查
+      strategy: naturally
+      trigger: auto
+      steps:
+        - step: build@shell
+          name: lint
+          displayName: Lint 检查
+          commands:
+            - chmod +x gradlew
+            - ./gradlew lint
+        - step: build@shell
+          name: test
+          displayName: 单元测试
+          commands:
+            - ./gradlew testDebugUnitTest
+  - stage:
+      name: build-release
+      displayName: 编译发布版
+      strategy: naturally
+      trigger: auto
+      steps:
+        - step: build@shell
+          name: decode-keystore
+          displayName: 解密签名密钥
+          commands:
+            - if [ -n "$KEYSTORE_BASE64" ]; then echo "$KEYSTORE_BASE64" | base64 --decode > app/keystore.jks; echo "密钥库已就绪"; else echo "警告: 未设置 KEYSTORE_BASE64，将使用调试签名"; fi
+        - step: build@shell
+          name: bundle-release
+          displayName: 编译 AAB
+          commands:
+            - ./gradlew bundleRelease
+        - step: build@shell
+          name: apk-release
+          displayName: 编译 APK
+          commands:
+            - ./gradlew assembleRelease
