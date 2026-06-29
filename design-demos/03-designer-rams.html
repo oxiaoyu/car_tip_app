@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>挪车通知 — 设计原型</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F8F9FA;
+  --surface:#FFFFFF;
+  --on-surface:#1A1A1A;
+  --on-surface-secondary:#888888;
+  --primary:#1A73E8;
+  --error:#D93025;
+  --success:#188038;
+  --radius:8px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  font-family:var(--font);
+  color:var(--on-surface);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+#root{min-height:100vh;padding:48px 24px}
+
+/* ---- page header ---- */
+.page-header{text-align:center;margin-bottom:40px}
+.page-header h1{font-size:24px;font-weight:300;letter-spacing:2px;color:var(--on-surface)}
+.page-header p{font-size:13px;color:var(--on-surface-secondary);margin-top:6px;font-style:italic}
+
+/* ---- phone grid ---- */
+.phone-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:32px;max-width:1440px;margin:0 auto}
+
+/* ---- phone container (label + frame) ---- */
+.phone-container{display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone-label{font-size:13px;color:var(--on-surface-secondary);font-style:italic;letter-spacing:0.3px}
+
+/* ---- phone frame ---- */
+.phone{
+  position:relative;
+  width:384px;
+  background:linear-gradient(160deg,#2c2c2c 0%,#1a1a1a 40%,#2a2a2a 100%);
+  border-radius:40px;
+  padding:14px;
+  box-sizing:border-box;
+}
+.phone-screen{
+  width:356px;
+  height:772px;
+  background:var(--surface);
+  border-radius:26px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  position:relative;
+}
+.phone-screen::-webkit-scrollbar{width:2px}
+.phone-screen::-webkit-scrollbar-thumb{background:var(--on-surface-secondary);border-radius:2px}
+
+/* ---- camera notch ---- */
+.phone-notch{
+  position:absolute;top:18px;left:50%;transform:translateX(-50%);
+  width:10px;height:10px;background:#111;border-radius:50%;z-index:10;
+}
+
+/* ---- shared: toggle switch ---- */
+.toggle{position:relative;display:inline-block;width:36px;height:18px;background:#ddd;border-radius:9px;cursor:pointer;transition:background 0.2s;flex-shrink:0}
+.toggle.active{background:var(--primary)}
+.toggle-knob{position:absolute;top:2px;left:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:transform 0.2s}
+.toggle.active .toggle-knob{transform:translateX(18px)}
+
+/* ---- shared: dot indicator ---- */
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.dot--success{background:var(--success)}
+.dot--inactive{background:#ccc}
+
+/* ---- shared: FAB ---- */
+.fab{
+  position:absolute;bottom:20px;right:20px;
+  width:44px;height:44px;border-radius:50%;
+  background:var(--primary);color:#fff;border:none;
+  font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  line-height:1;padding:0;transition:opacity 0.15s;
+}
+.fab:hover{opacity:0.85}
+.fab:active{opacity:0.7}
+
+/* ---- shared: bottom nav ---- */
+.bottom-nav{
+  display:flex;border-top:1px solid #eee;background:var(--surface);position:sticky;bottom:0;
+}
+.bottom-nav-item{
+  flex:1;text-align:center;padding:10px 0 8px;
+  font-size:12px;color:var(--on-surface-secondary);cursor:pointer;position:relative;user-select:none;
+  transition:color 0.15s;
+}
+.bottom-nav-item.active{color:var(--primary)}
+.bottom-nav-item.active::before{
+  content:'';position:absolute;top:-1px;left:20%;right:20%;
+  height:2px;background:var(--primary);
+}
+.bottom-nav-item:hover{color:var(--on-surface)}
+
+/* ---- shared: form elements ---- */
+.field-group{margin-bottom:18px}
+.field-label{display:block;font-size:12px;color:var(--on-surface-secondary);margin-bottom:4px;letter-spacing:0.3px;text-transform:uppercase}
+.field-input{
+  display:block;width:100%;padding:8px 0;border:none;border-bottom:1px solid #e0e0e0;
+  font-size:15px;font-family:var(--font);color:var(--on-surface);outline:none;background:transparent;
+  transition:border-color 0.15s;
+}
+.field-input:focus{border-bottom-color:var(--primary)}
+.field-textarea{display:block;width:100%;padding:8px 0;border:none;border-bottom:1px solid #e0e0e0;font-size:15px;font-family:var(--font);color:var(--on-surface);outline:none;background:transparent;min-height:60px;resize:none;transition:border-color 0.15s}
+.field-textarea:focus{border-bottom-color:var(--primary)}
+
+/* ---- shared: button ---- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:10px 24px;border:none;border-radius:var(--radius);
+  font-size:15px;font-family:var(--font);cursor:pointer;
+  transition:opacity 0.15s;user-select:none;
+}
+.btn:hover{opacity:0.85}
+.btn:active{opacity:0.7}
+.btn--primary{background:var(--primary);color:#fff}
+.btn--outline{background:transparent;border:2px solid var(--primary);color:var(--primary)}
+.btn--block{width:100%}
+
+/* ---- shared: separator ---- */
+.separator{height:1px;background:#eee;border:none;margin:0}
+
+/* ---- shared: screen padding ---- */
+.screen{padding:20px;display:flex;flex-direction:column;min-height:100%}
+.screen-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.screen-title{font-size:18px;font-weight:400;color:var(--on-surface);letter-spacing:-0.2px}
+.screen-action{font-size:13px;color:var(--primary);cursor:pointer;background:none;border:none;font-family:var(--font);padding:0}
+.screen-action:hover{text-decoration:underline}
+
+/* ============ SCREEN A: Notification List ============ */
+.notif-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 0;border-bottom:1px solid #f0f0f0;
+}
+.notif-item:last-child{border-bottom:none}
+.notif-item-left{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.notif-item-name{font-size:15px;color:var(--on-surface);font-weight:400}
+.notif-item-detail{font-size:12px;color:var(--on-surface-secondary)}
+.notif-item-right{display:flex;align-items:center;gap:12px;flex-shrink:0;margin-left:12px}
+
+/* ============ SCREEN B: Edit Notification ============ */
+.edit-section{margin-bottom:24px}
+.edit-section-header{font-size:11px;color:var(--on-surface-secondary);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:14px;font-weight:500}
+.edit-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f0f0f0}
+.edit-row-label{font-size:15px;color:var(--on-surface)}
+.edit-form-actions{margin-top:auto;padding-top:20px}
+
+/* ============ SCREEN C: Rule Management ============ */
+.rule-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;
+  transition:opacity 0.15s;
+}
+.rule-item:hover{opacity:0.75}
+.rule-item:active{opacity:0.6}
+.rule-item-left{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.rule-item-trigger{font-size:15px;color:var(--on-surface)}
+.rule-item-action{font-size:12px;color:var(--on-surface-secondary)}
+.rule-item-delete{
+  font-size:12px;color:#bbb;cursor:pointer;background:none;border:none;font-family:var(--font);padding:4px 8px;flex-shrink:0;
+  transition:color 0.15s;
+}
+.rule-item-delete:hover{color:var(--error)}
+.rule-add-form{margin-top:16px;padding-top:16px;border-top:1px solid #eee}
+.rule-add-row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.rule-add-row input{flex:1;padding:8px 0;border:none;border-bottom:1px solid #e0e0e0;font-size:14px;font-family:var(--font);outline:none}
+.rule-add-row input:focus{border-bottom-color:var(--primary)}
+.rule-add-actions{display:flex;gap:8px;justify-content:flex-end}
+.rule-add-actions button{padding:6px 16px;font-size:13px}
+
+/* ============ SCREEN D: Full-screen Alert ============ */
+.alert-screen{
+  min-height:100%;display:flex;flex-direction:column;justify-content:space-between;
+  background:#D93025;color:#fff;padding:32px 24px;
+  animation:alertPulse 3s ease-in-out infinite;
+}
+@keyframes alertPulse{
+  0%,100%{background-color:#D93025}
+  50%{background-color:#BD2A1E}
+}
+.alert-top{flex:1}
+.alert-sender{font-size:24px;font-weight:300;margin-bottom:8px;letter-spacing:-0.3px}
+.alert-time{font-size:13px;opacity:0.7;margin-bottom:20px}
+.alert-message{font-size:15px;line-height:1.6;opacity:0.9}
+.alert-divider{height:1px;background:rgba(255,255,255,0.2);border:none;margin:20px 0}
+.alert-bottom{display:flex;flex-direction:column;gap:12px;padding-bottom:8px}
+.alert-close-btn{
+  width:100%;padding:14px;background:transparent;border:2px solid rgba(255,255,255,0.8);
+  color:#fff;font-size:16px;font-family:var(--font);cursor:pointer;border-radius:var(--radius);
+  letter-spacing:1px;transition:background 0.2s;
+}
+.alert-close-btn:hover{background:rgba(255,255,255,0.1)}
+.alert-close-btn:active{background:rgba(255,255,255,0.2)}
+.alert-back-action{
+  text-align:center;font-size:12px;opacity:0.5;cursor:pointer;padding:8px;
+  background:none;border:none;color:#fff;font-family:var(--font);
+  transition:opacity 0.15s;
+}
+.alert-back-action:hover{opacity:0.8}
+.alert-toast{
+  position:absolute;bottom:80px;left:24px;right:24px;
+  background:rgba(0,0,0,0.7);color:#fff;text-align:center;
+  padding:10px 16px;border-radius:var(--radius);font-size:13px;
+  animation:toastIn 0.3s ease-out;
+}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.alert-resolved{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:32px}
+.alert-resolved-text{font-size:18px;color:var(--on-surface);font-weight:300}
+.alert-resolved-sub{font-size:13px;color:var(--on-surface-secondary)}
+.alert-resolved-btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 24px;border:none;border-radius:var(--radius);font-size:15px;font-family:var(--font);cursor:pointer;transition:opacity 0.15s;user-select:none;background:var(--primary);color:#fff;margin-top:8px}
+.alert-resolved-btn:hover{opacity:0.85}
+.alert-resolved-btn:active{opacity:0.7}
+
+/* ============ SCREEN E: Alert History ============ */
+.history-item{
+  display:flex;gap:14px;padding:14px 0;border-bottom:1px solid #f0f0f0;
+}
+.history-item:last-child{border-bottom:none}
+.history-time{font-size:12px;color:var(--on-surface-secondary);white-space:nowrap;padding-top:1px;min-width:68px}
+.history-content{flex:1;min-width:0}
+.history-sender{font-size:14px;color:var(--on-surface);margin-bottom:2px}
+.history-message{font-size:12px;color:var(--on-surface-secondary);line-height:1.4}
+.history-empty{padding:40px 0;text-align:center;font-size:14px;color:var(--on-surface-secondary)}
+
+/* ============ SCREEN F: Settings ============ */
+.settings-section{margin-bottom:24px}
+.settings-section-header{font-size:11px;color:var(--on-surface-secondary);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px;font-weight:500}
+.settings-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;
+  transition:opacity 0.15s;
+}
+.settings-item:hover{opacity:0.75}
+.settings-item:last-child{border-bottom:none}
+.settings-item-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.settings-item-label{font-size:15px;color:var(--on-surface)}
+.settings-item-value{font-size:13px;color:var(--on-surface-secondary)}
+.settings-chevron{font-size:14px;color:#ccc;flex-shrink:0;margin-left:8px;user-select:none}
+.settings-status{display:flex;align-items:center;gap:8px}
+.settings-status-text{font-size:13px;color:var(--on-surface-secondary)}
+.settings-permission{padding:14px 0;border-bottom:1px solid #f0f0f0}
+.settings-permission:last-child{border-bottom:none}
+.settings-permission-label{font-size:15px;color:var(--on-surface);margin-bottom:2px}
+.settings-permission-desc{font-size:12px;color:var(--on-surface-secondary);line-height:1.4}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useCallback, useRef, useEffect } = React;
+
+/* ─── Toggle Component ─── */
+function Toggle({ active, onChange }) {
+  return (
+    <div className={'toggle' + (active?' active':'')} onClick={onChange}>
+      <div className="toggle-knob" />
+    </div>
+  );
+}
+
+/* ─── Phone Frame ─── */
+function PhoneFrame({ label, children }) {
+  return (
+    <div className="phone-container">
+      <div className="phone-label">{label}</div>
+      <div className="phone">
+        <div className="phone-notch" />
+        <div className="phone-screen">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   SCREEN A — Notification List
+   ═══════════════════════════════════════════ */
+function NotificationList() {
+  const [items, setItems] = useState([
+    { id: 1, name: '王先生', plate: '京A·88888', enabled: true },
+    { id: 2, name: '李女士', plate: '京B·12345', enabled: true },
+    { id: 3, name: '张先生', plate: '京C·56789', enabled: false },
+    { id: 4, name: '停车场管理员', plate: '系统通知', enabled: true },
+    { id: 5, name: '刘先生', plate: '京D·98765', enabled: false },
+    { id: 6, name: '陈女士', plate: '京E·13579', enabled: true },
+  ]);
+  const nextId = useRef(7);
+
+  const toggleItem = useCallback((id) => {
+    setItems(prev => prev.map(it => it.id === id ? {...it, enabled: !it.enabled} : it));
+  }, []);
+
+  const addItem = useCallback(() => {
+    const plates = ['京F·24680','京G·11223','京H·33445','京J·55667'];
+    const names = ['赵先生','孙女士','周先生','吴女士'];
+    const p = plates[Math.floor(Math.random()*plates.length)];
+    const n = names[Math.floor(Math.random()*names.length)];
+    const id = nextId.current++;
+    setItems(prev => [{id,name:n,plate:p,enabled:true}, ...prev]);
+  }, []);
+
+  const [tab, setTab] = useState('通知');
+  const tabs = ['通知','规则','历史','设置'];
+
+  return (
+    <div className="screen" style={{paddingBottom:0, position:'relative'}}>
+      <div className="screen-header">
+        <span className="screen-title">通知项列表</span>
+      </div>
+      <div style={{flex:1}}>
+        {items.map(it => (
+          <div key={it.id} className="notif-item">
+            <div className="notif-item-left">
+              <span className="notif-item-name">{it.name}</span>
+              <span className="notif-item-detail">{it.plate}</span>
+            </div>
+            <div className="notif-item-right">
+              <div className={'dot ' + (it.enabled ? 'dot--success' : 'dot--inactive')} />
+              <Toggle active={it.enabled} onChange={() => toggleItem(it.id)} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <button className="fab" onClick={addItem} aria-label="添加" style={{position:'absolute', bottom:'56px', right:'20px'}}>+</button>
+      <div className="bottom-nav">
+        {tabs.map(t => (
+          <div key={t} className={'bottom-nav-item' + (tab===t?' active':'')} onClick={() => setTab(t)}>
+            {t}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   SCREEN B — Edit Notification
+   ═══════════════════════════════════════════ */
+function EditNotification() {
+  const [form, setForm] = useState({
+    name: '王先生',
+    plate: '京A·88888',
+    phone: '138****8888',
+    message: '您的车辆阻挡通行，请尽快挪车。',
+  });
+  const [autoSend, setAutoSend] = useState(true);
+  const [vibrate, setVibrate] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const update = (field) => (e) => setForm(prev => ({...prev, [field]: e.target.value}));
+  const handleSave = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
+
+  return (
+    <div className="screen">
+      <div className="screen-header">
+        <span className="screen-title">编辑通知项</span>
+      </div>
+
+      <div className="edit-section">
+        <div className="edit-section-header">基本信息</div>
+        <div className="field-group">
+          <label className="field-label">车主姓名</label>
+          <input className="field-input" value={form.name} onChange={update('name')} />
+        </div>
+        <div className="field-group">
+          <label className="field-label">车牌号码</label>
+          <input className="field-input" value={form.plate} onChange={update('plate')} />
+        </div>
+        <div className="field-group">
+          <label className="field-label">联系电话</label>
+          <input className="field-input" value={form.phone} onChange={update('phone')} />
+        </div>
+        <div className="field-group">
+          <label className="field-label">提醒内容</label>
+          <textarea className="field-input" style={{minHeight:60,resize:'none'}} value={form.message} onChange={update('message')} />
+        </div>
+      </div>
+
+      <div className="edit-section">
+        <div className="edit-section-header">发送设置</div>
+        <div className="edit-row">
+          <span className="edit-row-label">自动发送</span>
+          <Toggle active={autoSend} onChange={() => setAutoSend(v => !v)} />
+        </div>
+        <div className="edit-row">
+          <span className="edit-row-label">震动提醒</span>
+          <Toggle active={vibrate} onChange={() => setVibrate(v => !v)} />
+        </div>
+      </div>
+
+      <div className="edit-form-actions">
+        <button className="btn btn--primary btn--block" onClick={handleSave}>
+          {saved ? '已保存' : '保存'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   SCREEN C — Rule Management
+   ═══════════════════════════════════════════ */
+function RuleManagement() {
+  const [rules, setRules] = useState([
+    { id: 1, trigger: '138****8888', action: '挪车提醒', editing: false, tempTrigger: '', tempAction: '' },
+    { id: 2, trigger: '139****1234', action: '紧急挪车', editing: false, tempTrigger: '', tempAction: '' },
+    { id: 3, trigger: '136****5678', action: '占道提醒', editing: false, tempTrigger: '', tempAction: '' },
+    { id: 4, trigger: '137****9012', action: '移车通知', editing: false, tempTrigger: '', tempAction: '' },
+  ]);
+  const [adding, setAdding] = useState(false);
+  const [newTrigger, setNewTrigger] = useState('');
+  const [newAction, setNewAction] = useState('');
+  const nextRuleId = useRef(5);
+
+  const startEdit = useCallback((id) => {
+    setRules(prev => prev.map(r => {
+      if (r.id !== id) return {...r, editing: false};
+      return {...r, editing: true, tempTrigger: r.trigger, tempAction: r.action};
+    }));
+    setAdding(false);
+  }, []);
+
+  const cancelEdit = useCallback((id) => {
+    setRules(prev => prev.map(r => r.id === id ? {...r, editing: false} : r));
+  }, []);
+
+  const saveEdit = useCallback((id) => {
+    setRules(prev => prev.map(r => r.id === id ? {...r, trigger: r.tempTrigger, action: r.tempAction, editing: false} : r));
+  }, []);
+
+  const updateTemp = useCallback((id, field) => (e) => {
+    setRules(prev => prev.map(r => r.id === id ? {...r, [field]: e.target.value} : r));
+  }, []);
+
+  const deleteRule = useCallback((id) => {
+    setRules(prev => prev.filter(r => r.id !== id));
+  }, []);
+
+  const addRule = useCallback(() => {
+    if (!newTrigger.trim() || !newAction.trim()) return;
+    setRules(prev => [...prev, {
+      id: nextRuleId.current++, trigger: newTrigger.trim(), action: newAction.trim(),
+      editing: false, tempTrigger: '', tempAction: ''
+    }]);
+    setNewTrigger(''); setNewAction(''); setAdding(false);
+  }, [newTrigger, newAction]);
+
+  return (
+    <div className="screen" style={{paddingBottom:0, position:'relative'}}>
+      <div className="screen-header">
+        <span className="screen-title">触发规则管理</span>
+      </div>
+      <div style={{flex:1}}>
+        {rules.map(r => (
+          <div key={r.id}>
+            {r.editing ? (
+              <div className="rule-add-form" style={{marginTop:0,paddingTop:'12px 0'}}>
+                <div className="rule-add-row">
+                  <span style={{fontSize:12,color:'var(--on-surface-secondary)',marginRight:4,whiteSpace:'nowrap'}}>触发:</span>
+                  <input value={r.tempTrigger} onChange={updateTemp(r.id,'tempTrigger')} placeholder="电话号码" />
+                </div>
+                <div className="rule-add-row">
+                  <span style={{fontSize:12,color:'var(--on-surface-secondary)',marginRight:4,whiteSpace:'nowrap'}}>动作:</span>
+                  <input value={r.tempAction} onChange={updateTemp(r.id,'tempAction')} placeholder="提醒类型" />
+                </div>
+                <div className="rule-add-actions">
+                  <button className="btn btn--outline" style={{padding:'6px 16px',fontSize:13}} onClick={() => cancelEdit(r.id)}>取消</button>
+                  <button className="btn btn--primary" style={{padding:'6px 16px',fontSize:13}} onClick={() => saveEdit(r.id)}>保存</button>
+                </div>
+              </div>
+            ) : (
+              <div className="rule-item" onClick={() => startEdit(r.id)}>
+                <div className="rule-item-left">
+                  <span className="rule-item-trigger">{r.trigger} →</span>
+                  <span className="rule-item-action">{r.action}</span>
+                </div>
+                <button className="rule-item-delete" onClick={(e) => { e.stopPropagation(); deleteRule(r.id); }}>删除</button>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {adding && (
+          <div className="rule-add-form">
+            <div className="rule-add-row">
+              <span style={{fontSize:12,color:'var(--on-surface-secondary)',marginRight:4,whiteSpace:'nowrap'}}>触发:</span>
+              <input value={newTrigger} onChange={e => setNewTrigger(e.target.value)} placeholder="电话号码" autoFocus />
+            </div>
+            <div className="rule-add-row">
+              <span style={{fontSize:12,color:'var(--on-surface-secondary)',marginRight:4,whiteSpace:'nowrap'}}>动作:</span>
+              <input value={newAction} onChange={e => setNewAction(e.target.value)} placeholder="提醒类型" />
+            </div>
+            <div className="rule-add-actions">
+              <button className="btn btn--outline" style={{padding:'6px 16px',fontSize:13}} onClick={() => { setAdding(false); setNewTrigger(''); setNewAction(''); }}>取消</button>
+              <button className="btn btn--primary" style={{padding:'6px 16px',fontSize:13}} onClick={addRule}>添加</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <button className="fab" onClick={() => { setAdding(v => !v); setRules(prev => prev.map(r => ({...r,editing:false}))); }} aria-label="添加规则" style={{position:'absolute', bottom:'20px', right:'20px'}}>
+        {adding ? '×' : '+'}
+      </button>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   SCREEN D — Full-screen Alert
+   ═══════════════════════════════════════════ */
+function FullScreenAlert() {
+  const [state, setState] = useState('alert'); // 'alert' | 'resolved' | 'back-toast'
+  const toastTimer = useRef(null);
+
+  const handleClose = useCallback(() => {
+    setState('resolved');
+  }, []);
+
+  const handleBack = useCallback(() => {
+    if (state === 'alert') {
+      setState('back-toast');
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      toastTimer.current = setTimeout(() => setState('alert'), 2500);
+    }
+  }, [state]);
+
+  const handleReset = useCallback(() => {
+    setState('alert');
+  }, []);
+
+  useEffect(() => {
+    return () => { if (toastTimer.current) clearTimeout(toastTimer.current); };
+  }, []);
+
+  if (state === 'resolved') {
+    return (
+      <div className="screen">
+        <div className="alert-resolved">
+          <div className="alert-resolved-text">提醒已处理</div>
+          <div className="alert-resolved-sub">所有提醒已完成</div>
+          <button className="alert-resolved-btn" onClick={handleReset}>返回待处理</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="alert-screen" onClick={handleBack}>
+      <div className="alert-top">
+        <div className="alert-sender">138****8888</div>
+        <div className="alert-time">2024-01-15 14:30:22</div>
+        <hr className="alert-divider" />
+        <div className="alert-message">
+          您的车辆 京A·88888 在朝阳区望京SOHO附近阻挡通行，请尽快前往挪车。车主电话已通过系统通知。
+        </div>
+      </div>
+      <div className="alert-bottom">
+        <button className="alert-close-btn" onClick={(e) => { e.stopPropagation(); handleClose(); }}>
+          关闭提醒
+        </button>
+        <button className="alert-back-action" onClick={(e) => { e.stopPropagation(); handleBack(); }}>
+          返回
+        </button>
+      </div>
+      {state === 'back-toast' && (
+        <div className="alert-toast">请先处理提醒</div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   SCREEN E — Alert History
+   ═══════════════════════════════════════════ */
+function AlertHistory() {
+  const [logs, setLogs] = useState([
+    { id: 1, time: '14:30', sender: '138****8888', message: '挪车提醒 — 京A·88888 望京SOHO' },
+    { id: 2, time: '13:15', sender: '139****1234', message: '紧急挪车 — 京B·12345 国贸CBD' },
+    { id: 3, time: '11:40', sender: '136****5678', message: '占道提醒 — 京C·56789 三里屯' },
+    { id: 4, time: '09:20', sender: '137****9012', message: '移车通知 — 京D·98765 西单' },
+    { id: 5, time: '昨天 18:05', sender: '138****8888', message: '挪车提醒 — 京E·13579 中关村' },
+    { id: 6, time: '昨天 15:30', sender: '139****1234', message: '紧急挪车 — 京F·24680 五道口' },
+  ]);
+
+  const clearAll = useCallback(() => {
+    setLogs([]);
+  }, []);
+
+  return (
+    <div className="screen">
+      <div className="screen-header">
+        <span className="screen-title">提醒历史</span>
+        {logs.length > 0 && (
+          <button className="screen-action" onClick={clearAll}>清空</button>
+        )}
+      </div>
+      <div style={{flex:1}}>
+        {logs.length === 0 ? (
+          <div className="history-empty">暂无提醒记录</div>
+        ) : (
+          logs.map(log => (
+            <div key={log.id} className="history-item">
+              <span className="history-time">{log.time}</span>
+              <div className="history-content">
+                <div className="history-sender">{log.sender}</div>
+                <div className="history-message">{log.message}</div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   SCREEN F — Settings
+   ═══════════════════════════════════════════ */
+function SettingsScreen() {
+  const [serviceOn, setServiceOn] = useState(true);
+
+  return (
+    <div className="screen">
+      <div className="screen-header">
+        <span className="screen-title">设置</span>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-header">服务状态</div>
+        <div className="settings-item" onClick={() => setServiceOn(v => !v)}>
+          <div className="settings-item-left">
+            <span className="settings-item-label">通知服务</span>
+          </div>
+          <div className="settings-status">
+            <div className={'dot ' + (serviceOn ? 'dot--success' : 'dot--inactive')} />
+            <span className="settings-status-text">{serviceOn ? '运行中' : '已停止'}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-header">权限管理</div>
+        <div className="settings-permission">
+          <div className="settings-permission-label">短信权限</div>
+          <div className="settings-permission-desc">用于发送挪车提醒短信</div>
+          <div className="settings-item" style={{border:'none',padding:'8px 0 0',cursor:'default',opacity:1}}>
+            <span className="settings-item-value">已授权</span>
+            <span className="settings-chevron">›</span>
+          </div>
+        </div>
+        <div className="settings-permission">
+          <div className="settings-permission-label">通知权限</div>
+          <div className="settings-permission-desc">用于接收全屏提醒</div>
+          <div className="settings-item" style={{border:'none',padding:'8px 0 0',cursor:'default',opacity:1}}>
+            <span className="settings-item-value">已授权</span>
+            <span className="settings-chevron">›</span>
+          </div>
+        </div>
+        <div className="settings-permission">
+          <div className="settings-permission-label">位置权限</div>
+          <div className="settings-permission-desc">用于定位车辆位置</div>
+          <div className="settings-item" style={{border:'none',padding:'8px 0 0',cursor:'default',opacity:1}}>
+            <span className="settings-item-value">未授权</span>
+            <span className="settings-chevron">›</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-header">其他</div>
+        <div className="settings-item">
+          <span className="settings-item-label">关于</span>
+          <span className="settings-chevron">›</span>
+        </div>
+        <div className="settings-item">
+          <span className="settings-item-label">版本</span>
+          <span className="settings-item-value">v1.2.0</span>
+        </div>
+        <div className="settings-item">
+          <span className="settings-item-label">隐私政策</span>
+          <span className="settings-chevron">›</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   APP — Root
+   ═══════════════════════════════════════════ */
+function App() {
+  return (
+    <div>
+      <div className="page-header">
+        <h1>挪车通知</h1>
+        <p>Dieter Rams · Weniger aber besser</p>
+      </div>
+      <div className="phone-grid">
+        <PhoneFrame label="通知项列表">
+          <NotificationList />
+        </PhoneFrame>
+        <PhoneFrame label="通知项编辑">
+          <EditNotification />
+        </PhoneFrame>
+        <PhoneFrame label="触发规则管理">
+          <RuleManagement />
+        </PhoneFrame>
+        <PhoneFrame label="全屏提醒页">
+          <FullScreenAlert />
+        </PhoneFrame>
+        <PhoneFrame label="提醒历史">
+          <AlertHistory />
+        </PhoneFrame>
+        <PhoneFrame label="设置页">
+          <SettingsScreen />
+        </PhoneFrame>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

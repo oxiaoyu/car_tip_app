@@ -1,0 +1,65 @@
+version: '1.0'
+name: Android Release
+variables:
+  GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true'
+  KEYSTORE_PASSWORD: ${KEYSTORE_PASSWORD}
+  KEY_ALIAS: ${KEY_ALIAS}
+  KEY_PASSWORD: ${KEY_PASSWORD}
+global:
+  artifacts:
+    - path: app/build/outputs/bundle/release/
+      target: aab/release/
+    - path: app/build/outputs/apk/release/
+      target: apk/release/
+    - path: app/build/reports/
+      target: reports/
+  artifacts_retention_days: 30
+triggers:
+  - trigger:
+      type: tag
+      events:
+        - push
+      version_pattern: 'v*.*.*'
+
+pipeline:
+  - stage:
+      name: lint-test
+      displayName: 质量检查
+      agent:
+        image: android:latest
+      steps:
+        - name: lint
+          displayName: Lint 检查
+          run: |
+            chmod +x gradlew
+            ./gradlew lint
+        - name: test
+          displayName: 单元测试
+          run: |
+            ./gradlew testDebugUnitTest
+
+  - stage:
+      name: build-release
+      displayName: 编译发布版
+      agent:
+        image: android:latest
+      steps:
+        - name: decode-keystore
+          displayName: 解密签名密钥
+          run: |
+            if [ -n "$KEYSTORE_BASE64" ]; then
+              echo "$KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
+              echo "密钥库已就绪"
+            else
+              echo "警告：未设置 KEYSTORE_BASE64，将使用调试签名"
+            fi
+        - name: bundle-release
+          displayName: 编译 Release AAB
+          run: |
+            ./gradlew bundleRelease
+            echo "Release AAB 编译完成"
+        - name: apk-release
+          displayName: 编译 Release APK
+          run: |
+            ./gradlew assembleRelease
+            echo "Release APK 编译完成"

@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>挪车通知 - Material Design 3 Prototype</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+:root {
+  --md-primary: #1A73E8;
+  --md-on-primary: #FFFFFF;
+  --md-primary-container: #D3E3FD;
+  --md-on-primary-container: #041E49;
+  --md-secondary: #0061A4;
+  --md-surface-container: #F0F4F9;
+  --md-surface-container-high: #E8EDF1;
+  --md-surface-container-low: #F8FAFD;
+  --md-on-surface: #1F1F1F;
+  --md-on-surface-variant: #444746;
+  --md-outline: #DADCE0;
+  --md-outline-variant: #C4C7C5;
+  --md-error: #D93025;
+  --md-error-container: #FFE5E5;
+  --md-on-error: #FFFFFF;
+  --md-surface: #FFFFFF;
+  --md-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+  --md-shadow-lg: 0 4px 16px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
+  --md-elevation-1: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  --md-elevation-2: 0 2px 8px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06);
+  --md-elevation-3: 0 4px 16px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08);
+  --font-body: 'Segoe UI', 'Roboto', system-ui, -apple-system, sans-serif;
+  --font-display: 'Segoe UI', 'Google Sans', 'Product Sans', 'Roboto', sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #E2E6EB;
+  font-family: var(--font-body);
+  color: var(--md-on-surface);
+  min-height: 100vh;
+}
+.page-header {
+  text-align: center;
+  padding: 28px 20px 12px;
+  background: linear-gradient(180deg, #D2E3FC 0%, #E2E6EB 100%);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.page-header h1 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--md-on-primary-container);
+}
+.page-header p {
+  font-size: 13px;
+  color: var(--md-on-surface-variant);
+  margin-top: 2px;
+}
+.phone-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 32px;
+  padding: 20px 24px 40px;
+}
+.phone-wrapper {
+  width: 376px;
+}
+.phone-label {
+  text-align: center;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--md-on-surface-variant);
+  margin-bottom: 8px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+.phone-bezel {
+  width: 100%;
+  height: 796px;
+  background: #1C1C1E;
+  border-radius: 44px;
+  padding: 8px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.30), 0 2px 8px rgba(0,0,0,0.15);
+  position: relative;
+  border: 1px solid #2C2C2E;
+}
+.phone-screen {
+  width: 100%;
+  height: 100%;
+  background: var(--md-surface-container);
+  border-radius: 36px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.camera-punch {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  background: #0D0D0D;
+  border-radius: 50%;
+  z-index: 20;
+  border: 1.5px solid #2C2C2E;
+  box-shadow: inset 0 0 2px rgba(255,255,255,0.05);
+}
+.status-bar {
+  height: 36px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  font-size: 11px;
+  color: var(--md-on-surface);
+  font-weight: 500;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+.status-bar .status-time {
+  font-weight: 600;
+  font-size: 12px;
+}
+.status-bar .status-icons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.status-bar .status-icons svg {
+  display: block;
+}
+.screen-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+.screen-content::-webkit-scrollbar { width: 3px; }
+.screen-content::-webkit-scrollbar-track { background: transparent; }
+.screen-content::-webkit-scrollbar-thumb { background: var(--md-outline); border-radius: 2px; }
+
+/* MD3 Top App Bar */
+.top-app-bar {
+  display: flex;
+  align-items: center;
+  padding: 8px 4px 8px 12px;
+  min-height: 52px;
+  background: var(--md-surface-container);
+  flex-shrink: 0;
+}
+.top-app-bar .bar-title {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 500;
+  font-family: var(--font-display);
+  color: var(--md-on-surface);
+  padding-left: 4px;
+}
+.top-app-bar .bar-action {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--md-on-surface-variant);
+  transition: background 0.15s;
+}
+.top-app-bar .bar-action:hover { background: rgba(0,0,0,0.06); }
+.top-app-bar .bar-action:active { background: rgba(0,0,0,0.10); }
+.top-app-bar .bar-text-action {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--md-primary);
+  border: none;
+  background: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 20px;
+  letter-spacing: 0.01em;
+  transition: background 0.15s;
+}
+.top-app-bar .bar-text-action:hover { background: rgba(26,115,232,0.08); }
+
+/* MD3 Card */
+.md3-card {
+  background: var(--md-surface);
+  border-radius: 28px;
+  padding: 16px 20px;
+  margin: 8px 12px;
+  box-shadow: var(--md-elevation-1);
+  transition: box-shadow 0.2s;
+}
+.md3-card:hover { box-shadow: var(--md-elevation-2); }
+
+/* MD3 Chip */
+.md3-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant);
+  border: none;
+  cursor: default;
+  height: 28px;
+}
+.md3-chip.primary-chip {
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+}
+
+/* MD3 Filled Button */
+.md3-btn-filled {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 24px;
+  height: 44px;
+  border-radius: 22px;
+  border: none;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: box-shadow 0.2s, background 0.15s;
+}
+.md3-btn-filled:hover { box-shadow: var(--md-elevation-2); background: #1557B0; }
+
+/* MD3 Error Filled Button */
+.md3-btn-error {
+  background: var(--md-error);
+  color: var(--md-on-error);
+  height: 52px;
+  border-radius: 26px;
+  font-size: 16px;
+  padding: 0 40px;
+}
+.md3-btn-error:hover { background: #B3261E; }
+
+/* MD3 Outlined Button */
+.md3-btn-outlined {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px;
+  height: 40px;
+  border-radius: 20px;
+  border: 1px solid var(--md-outline);
+  background: transparent;
+  color: var(--md-primary);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.md3-btn-outlined:hover { background: rgba(26,115,232,0.06); border-color: var(--md-primary); }
+
+/* MD3 Text Field */
+.md3-text-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.md3-text-field label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--md-on-surface-variant);
+  padding-left: 12px;
+}
+.md3-text-field input {
+  height: 48px;
+  padding: 0 16px;
+  border: 1px solid var(--md-outline);
+  border-radius: 12px;
+  font-size: 15px;
+  font-family: var(--font-body);
+  color: var(--md-on-surface);
+  background: var(--md-surface);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.md3-text-field input:focus { border-color: var(--md-primary); border-width: 2px; padding: 0 15px; }
+
+/* MD3 Switch */
+.md3-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+}
+.md3-switch-row .switch-label {
+  font-size: 14px;
+  color: var(--md-on-surface);
+}
+.md3-toggle {
+  width: 44px;
+  height: 24px;
+  background: #C4C7C5;
+  border-radius: 12px;
+  border: none;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.md3-toggle.active { background: var(--md-primary); }
+.md3-toggle .thumb {
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.md3-toggle.active .thumb { transform: translateX(20px); }
+
+/* MD3 Bottom Nav */
+.bottom-nav {
+  display: flex;
+  align-items: stretch;
+  height: 56px;
+  background: var(--md-surface);
+  border-top: 1px solid var(--md-outline);
+  flex-shrink: 0;
+}
+.bottom-nav .nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--md-on-surface-variant);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 4px 0;
+  transition: color 0.15s;
+  position: relative;
+}
+.bottom-nav .nav-item.active { color: var(--md-primary); }
+.bottom-nav .nav-item .nav-indicator {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 3px;
+  background: var(--md-primary);
+  border-radius: 0 0 3px 3px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.bottom-nav .nav-item.active .nav-indicator { opacity: 1; }
+
+/* MD3 List Item */
+.md3-list-item {
+  display: flex;
+  align-items: center;
+  padding: 14px 20px;
+  gap: 12px;
+  border-bottom: 1px solid var(--md-outline);
+  cursor: pointer;
+  transition: background 0.12s;
+  min-height: 60px;
+}
+.md3-list-item:last-child { border-bottom: none; }
+.md3-list-item:hover { background: rgba(0,0,0,0.03); }
+.md3-list-item .list-text {
+  flex: 1;
+  min-width: 0;
+}
+.md3-list-item .list-text .primary-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--md-on-surface);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.md3-list-item .list-text .secondary-text {
+  font-size: 12px;
+  color: var(--md-on-surface-variant);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.md3-list-item .list-trailing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.md3-list-item .list-leading {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--md-primary-container);
+  color: var(--md-primary);
+}
+
+/* FAB */
+.fab {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  border: none;
+  box-shadow: var(--md-elevation-3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: box-shadow 0.2s, transform 0.15s;
+  z-index: 10;
+}
+.fab:hover { box-shadow: 0 6px 20px rgba(26,115,232,0.35); transform: scale(1.04); }
+.fab:active { transform: scale(0.96); }
+
+/* Full-screen Alert Overlay */
+.alert-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--md-error-container);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 20px;
+  z-index: 50;
+  animation: alertFadeIn 0.3s ease-out;
+}
+@keyframes alertFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.alert-overlay .alert-top {
+  position: absolute;
+  top: 60px;
+  left: 20px;
+  right: 20px;
+  text-align: center;
+}
+.alert-overlay .alert-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--md-error);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  box-shadow: 0 4px 20px rgba(217,48,37,0.3);
+}
+.alert-overlay .alert-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--md-error);
+  font-family: var(--font-display);
+  margin-bottom: 4px;
+}
+.alert-overlay .alert-subtitle {
+  font-size: 14px;
+  color: var(--md-on-surface-variant);
+}
+.alert-overlay .alert-card {
+  background: var(--md-surface);
+  border-radius: 28px;
+  padding: 20px 24px;
+  box-shadow: var(--md-elevation-2);
+  margin-bottom: 20px;
+}
+.alert-overlay .alert-card .alert-detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 14px;
+  border-bottom: 1px solid var(--md-outline);
+}
+.alert-overlay .alert-card .alert-detail-row:last-child { border-bottom: none; }
+.alert-overlay .alert-card .alert-detail-row .label { color: var(--md-on-surface-variant); }
+.alert-overlay .alert-card .alert-detail-row .value { font-weight: 500; color: var(--md-on-surface); }
+.alert-overlay .alert-close-btn {
+  width: 100%;
+  height: 52px;
+  border-radius: 26px;
+  background: var(--md-error);
+  color: var(--md-on-error);
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background 0.15s, transform 0.1s;
+  box-shadow: 0 4px 16px rgba(217,48,37,0.3);
+}
+.alert-overlay .alert-close-btn:hover { background: #B3261E; }
+.alert-overlay .alert-close-btn:active { transform: scale(0.97); }
+
+/* Section Divider (Settings) */
+.section-header {
+  padding: 20px 20px 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--md-primary);
+  letter-spacing: 0.01em;
+  background: transparent;
+}
+.section-divider {
+  height: 1px;
+  background: var(--md-outline);
+  margin: 4px 20px;
+}
+
+/* Toast / Snackbar */
+.toast-container {
+  position: absolute;
+  bottom: 20px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  justify-content: center;
+  z-index: 100;
+  pointer-events: none;
+}
+.toast {
+  background: #323232;
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 24px;
+  font-size: 13px;
+  font-weight: 400;
+  box-shadow: var(--md-elevation-3);
+  animation: toastIn 0.25s ease-out;
+  pointer-events: auto;
+  max-width: 90%;
+  text-align: center;
+}
+@keyframes toastIn {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Color chips for history status */
+.status-chip {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.status-chip.notified { background: #D3E3FD; color: #041E49; }
+.status-chip.moved { background: #CEEAD6; color: #0D652D; }
+.status-chip.unresponsive { background: #FFE5E5; color: #D93025; }
+
+/* Rule chip with delete */
+.rule-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+  border: none;
+  cursor: default;
+  height: 34px;
+  font-family: var(--font-body);
+}
+.rule-chip .chip-del {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--md-on-surface-variant);
+  transition: background 0.12s;
+}
+.rule-chip .chip-del:hover { background: rgba(0,0,0,0.08); }
+.rule-chip.add-chip {
+  background: transparent;
+  border: 1.5px dashed var(--md-outline);
+  color: var(--md-primary);
+  cursor: pointer;
+  padding: 6px 16px;
+}
+.rule-chip.add-chip:hover { background: rgba(26,115,232,0.06); }
+
+/* Settings items */
+.settings-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--md-surface);
+  min-height: 52px;
+}
+.settings-item .set-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--md-on-surface-variant);
+}
+.settings-item .set-text { flex: 1; font-size: 14px; color: var(--md-on-surface); }
+.settings-item .set-sub {
+  font-size: 12px;
+  color: var(--md-on-surface-variant);
+  margin-top: 1px;
+}
+
+/* Alert back button feedback */
+.back-alert-toast {
+  position: absolute;
+  top: 20px;
+  left: 12px;
+  z-index: 60;
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+/* ===== ICONS ===== */
+function Icon({ name, size = 24, color = '#1F1F1F' }) {
+  const paths = {
+    notifications: 'M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z',
+    history: 'M13 3a9 9 0 00-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0013 21a9 9 0 000-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z',
+    settings: 'M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.12-.1.17-.26.12-.39l-1.92-3.32c-.07-.13-.23-.19-.36-.16l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.03-.18-.19-.31-.37-.31h-3.84c-.18 0-.34.13-.37.31l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.13-.05-.28 0-.36.16l-1.92 3.32c-.07.13-.02.29.12.39l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.14.1-.19.26-.12.39l1.92 3.32c.07.13.23.19.36.16l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.03.18.19.31.37.31h3.84c.18 0 .34-.13.37-.31l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.13.05.28 0 .36-.16l1.92-3.32c.07-.13.02-.29-.12-.39l-2.03-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z',
+    info: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z',
+    add: 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',
+    edit: 'M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z',
+    delete: 'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z',
+    back: 'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z',
+    close: 'M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z',
+    search: 'M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',
+    volume: 'M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z',
+    'clear-all': 'M5 13h14v-2H5v2zm-2 4h14v-2H3v2zM7 7v2h14V7H7z',
+    'notifications-off': 'M20 18.69L7.84 6.14 5.27 3.49 4 4.76l2.8 2.8v.01c-.52.99-.8 2.16-.8 3.42v5l-2 2v1h13.73l2 2L21 19.72l-1-1.03zM12 22c1.11 0 2-.89 2-2h-4c0 1.11.89 2 2 2zm6-7.32V11c0-3.08-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-.15.03-.29.08-.42.12-.1.03-.2.07-.3.11h-.01c-.01 0-.01 0-.02.01-.23.09-.46.2-.68.31 0 0-.01 0-.01.01L18 14.68z',
+    'more-vert': 'M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z',
+    wifi: 'M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z',
+    battery: 'M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z',
+    alarm: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z',
+    check: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z',
+    'arrow-down': 'M7 10l5 5 5-5z',
+    signal: 'M3 21V3h2v18H3zm5 0V8h2v13H8zm5 0V13h2v8h-2zm5 0V5h2v16h-2z',
+  };
+  return React.createElement('svg', {
+    width: size, height: size, viewBox: '0 0 24 24', fill: color,
+  }, React.createElement('path', { d: paths[name] || paths.info }));
+}
+
+/* ===== SAMPLE DATA ===== */
+const SAMPLE = {
+  cars: [
+    { id: 1, plate: '京A·12345', brand: '白色 大众帕萨特', rules: 3, active: true, vibration: true, ringtone: '来电铃声（默认）' },
+    { id: 2, plate: '京B·67890', brand: '黑色 丰田凯美瑞', rules: 2, active: false, vibration: true, ringtone: '标准铃声' },
+    { id: 3, plate: '沪C·54321', brand: '银色 本田雅阁', rules: 4, active: true, vibration: false, ringtone: '来电铃声（默认）' },
+    { id: 4, plate: '粤D·98765', brand: '蓝色 宝马3系', rules: 1, active: false, vibration: true, ringtone: '激昂' },
+    { id: 5, plate: '苏E·24680', brand: '红色 奥迪A4L', rules: 2, active: true, vibration: true, ringtone: '来电铃声（默认）' },
+    { id: 6, plate: '浙F·13579', brand: '灰色 特斯拉Model 3', rules: 3, active: false, vibration: false, ringtone: '柔和' },
+  ],
+  rules: [
+    { id: 1, phoneKeyword: '违停', contentKeyword: '消防通道', enabled: true },
+    { id: 2, phoneKeyword: '违规停车', contentKeyword: '禁停路段', enabled: true },
+    { id: 3, phoneKeyword: '阻碍', contentKeyword: '出入口', enabled: false },
+    { id: 4, phoneKeyword: '占用', contentKeyword: '专用车位', enabled: true },
+    { id: 5, phoneKeyword: '违章停放', contentKeyword: '禁停区域', enabled: true },
+    { id: 6, phoneKeyword: '违规停放', contentKeyword: '人行道', enabled: false },
+  ],
+  history: [
+    { id: 1, plate: '京A·12345', time: '2026-06-29 14:32', reason: '占用消防通道', status: 'notified' },
+    { id: 2, plate: '沪C·54321', time: '2026-06-29 11:15', reason: '小区禁停区违停', status: 'moved' },
+    { id: 3, plate: '京B·67890', time: '2026-06-28 19:42', reason: '阻碍出入口', status: 'unresponsive' },
+    { id: 4, plate: '粤D·98765', time: '2026-06-28 08:20', reason: '占用专用车位', status: 'notified' },
+    { id: 5, plate: '苏E·24680', time: '2026-06-27 22:10', reason: '禁停时段违规', status: 'moved' },
+    { id: 6, plate: '浙F·13579', time: '2026-06-27 16:55', reason: '占用残疾人车位', status: 'notified' },
+    { id: 7, plate: '京A·12345', time: '2026-06-26 10:30', reason: '违停阻挡车辆', status: 'moved' },
+  ],
+};
+
+/* ===== STATUS BAR ===== */
+function StatusBar() {
+  return React.createElement('div', { className: 'status-bar' },
+    React.createElement('span', { className: 'status-time' }, '12:30'),
+    React.createElement('div', { className: 'status-icons' },
+      React.createElement(Icon, { name: 'wifi', size: 14, color: '#444746' }),
+      React.createElement(Icon, { name: 'signal', size: 14, color: '#444746' }),
+      React.createElement(Icon, { name: 'battery', size: 16, color: '#444746' }),
+    )
+  );
+}
+
+/* ===== TOAST ===== */
+function Toast({ message, visible }) {
+  if (!visible) return null;
+  return React.createElement('div', { className: 'toast-container' },
+    React.createElement('div', { className: 'toast' }, message)
+  );
+}
+
+/* ===== NOTIFICATION LIST SCREEN ===== */
+function NotificationListScreen({ onToggle, onEdit, cars }) {
+  return React.createElement('div', { style: { paddingTop: 0 } },
+    React.createElement('div', { className: 'top-app-bar' },
+      React.createElement('span', { className: 'bar-title' }, '通知项'),
+      React.createElement('button', { className: 'bar-action' },
+        React.createElement(Icon, { name: 'search', size: 22, color: '#444746' })
+      ),
+    ),
+    React.createElement('div', { style: { padding: '4px 0 80px' } },
+      cars.map(car =>
+        React.createElement('div', { key: car.id, className: 'md3-card', style: { cursor: 'pointer' } },
+          React.createElement('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' } },
+            React.createElement('div', { style: { flex: 1, minWidth: 0 } },
+              React.createElement('div', { style: { fontSize: 16, fontWeight: 600, color: '#1F1F1F', fontFamily: 'var(--font-display)' } }, car.plate),
+              React.createElement('div', { style: { fontSize: 13, color: '#444746', marginTop: 2 } }, car.brand),
+              React.createElement('div', { style: { display: 'flex', gap: 8, marginTop: 10 } },
+                React.createElement('span', { className: 'md3-chip primary-chip' },
+                  car.rules + ' 条触发规则'
+                ),
+              ),
+            ),
+            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 } },
+              React.createElement('button', {
+                className: 'md3-toggle' + (car.active ? ' active' : ''),
+                onClick: () => onToggle(car.id),
+                style: { marginTop: 2 }
+              },
+                React.createElement('span', { className: 'thumb' })
+              ),
+              React.createElement('span', { style: { fontSize: 10, color: '#444746' } }, car.active ? '开启' : '关闭')
+            ),
+          ),
+          React.createElement('div', { style: { display: 'flex', gap: 8, marginTop: 10, borderTop: '1px solid #E8EDF1', paddingTop: 10 } },
+            React.createElement('button', {
+              className: 'md3-btn-outlined',
+              style: { height: 32, fontSize: 12, padding: '0 14px', flex: 1 },
+              onClick: () => onEdit(car)
+            },
+              React.createElement(Icon, { name: 'edit', size: 14, color: '#1A73E8' }),
+              '编辑'
+            ),
+          ),
+        )
+      ),
+    ),
+    React.createElement('button', { className: 'fab', onClick: () => {} },
+      React.createElement(Icon, { name: 'add', size: 28, color: '#FFFFFF' })
+    ),
+  );
+}
+
+/* ===== EDIT NOTIFICATION SCREEN ===== */
+function EditNotificationScreen({ car, onBack, onToggleVibration, onRingtonePick }) {
+  const [vibration, setVibration] = useState(car ? car.vibration : true);
+  const [plate, setPlate] = useState(car ? car.plate : '京A·12345');
+  const ringtone = (car && car.ringtone) || '来电铃声（默认）';
+  const ruleDescs = ['违停 → 消防通道', '违规停车 → 禁停路段', '占用 → 专用车位'];
+
+  const handleVibToggle = () => { setVibration(!vibration); if (onToggleVibration) onToggleVibration(!vibration); };
+
+  return React.createElement('div', {},
+    React.createElement('div', { className: 'top-app-bar' },
+      React.createElement('button', { className: 'bar-action', onClick: onBack },
+        React.createElement(Icon, { name: 'back', size: 22, color: '#444746' })
+      ),
+      React.createElement('span', { className: 'bar-title' }, '编辑通知'),
+      React.createElement('button', { className: 'bar-text-action' }, '保存'),
+    ),
+    React.createElement('div', { style: { padding: '12px 20px 100px' } },
+      React.createElement('div', { className: 'md3-text-field', style: { marginBottom: 16 } },
+        React.createElement('label', {}, '车牌号码'),
+        React.createElement('input', {
+          type: 'text', value: plate,
+          onChange: e => setPlate(e.target.value),
+          placeholder: '输入车牌号'
+        }),
+      ),
+      React.createElement('div', { className: 'md3-switch-row' },
+        React.createElement('span', { className: 'switch-label' }, '震动提醒'),
+        React.createElement('button', {
+          className: 'md3-toggle' + (vibration ? ' active' : ''),
+          onClick: handleVibToggle
+        },
+          React.createElement('span', { className: 'thumb' })
+        ),
+      ),
+      React.createElement('div', { style: { borderTop: '1px solid #E8EDF1', margin: '4px 0 12px' } }),
+      React.createElement('div', { className: 'md3-switch-row', style: { padding: '12px 0 8px' } },
+        React.createElement('div', {},
+          React.createElement('div', { className: 'switch-label' }, '提醒铃声'),
+          React.createElement('div', { style: { fontSize: 12, color: '#444746', marginTop: 2 } }, ringtone),
+        ),
+        React.createElement('button', {
+          className: 'md3-btn-outlined',
+          style: { height: 36, fontSize: 12, padding: '0 16px' },
+          onClick: onRingtonePick || (() => {})
+        }, '选择'),
+      ),
+      React.createElement('div', { style: { borderTop: '1px solid #E8EDF1', margin: '16px 0 12px' } }),
+      React.createElement('div', { style: { fontSize: 14, fontWeight: 500, marginBottom: 10, color: '#1F1F1F' } }, '关联触发规则'),
+      React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
+        ...[0,1,2].map(i =>
+          React.createElement('span', { key: i, className: 'rule-chip' },
+            ruleDescs[i],
+            React.createElement('button', { className: 'chip-del', onClick: () => {} },
+              React.createElement(Icon, { name: 'close', size: 14, color: '#444746' })
+            ),
+          )
+        ),
+        React.createElement('button', { className: 'rule-chip add-chip' },
+          '+ 添加规则'
+        ),
+      ),
+    ),
+  );
+}
+
+/* ===== RULE MANAGEMENT SCREEN ===== */
+function RuleManagementScreen({ rules: ruleList }) {
+  return React.createElement('div', {},
+    React.createElement('div', { className: 'top-app-bar' },
+      React.createElement('span', { className: 'bar-title' }, '触发规则'),
+      React.createElement('button', { className: 'bar-text-action' }, '添加'),
+    ),
+    React.createElement('div', { style: { paddingBottom: 80 } },
+      ruleList.map((rule, idx) =>
+        React.createElement('div', { key: rule.id, className: 'md3-list-item', style: { background: '#FFFFFF', margin: '2px 0' } },
+          React.createElement('div', { className: 'list-leading' },
+            React.createElement(Icon, { name: 'info', size: 20, color: '#1A73E8' })
+          ),
+          React.createElement('div', { className: 'list-text' },
+            React.createElement('div', { className: 'primary-text' }, rule.phoneKeyword),
+            React.createElement('div', { className: 'secondary-text' }, '内容关键词: ' + rule.contentKeyword),
+          ),
+          React.createElement('div', { className: 'list-trailing' },
+            rule.enabled
+              ? React.createElement('span', { className: 'md3-chip primary-chip', style: { fontSize: 10 } }, '启用')
+              : React.createElement('span', { className: 'md3-chip', style: { fontSize: 10 } }, '停用'),
+          ),
+          React.createElement('div', { className: 'list-trailing' },
+            React.createElement('button', { className: 'bar-action', onClick: () => {} },
+              React.createElement(Icon, { name: 'edit', size: 18, color: '#444746' })
+            ),
+            React.createElement('button', { className: 'bar-action', onClick: () => {} },
+              React.createElement(Icon, { name: 'delete', size: 18, color: '#444746' })
+            ),
+          ),
+        )
+      ),
+    ),
+    React.createElement('button', { className: 'fab', onClick: () => {} },
+      React.createElement(Icon, { name: 'add', size: 28, color: '#FFFFFF' })
+    ),
+  );
+}
+
+/* ===== FULL-SCREEN ALERT ===== */
+function FullScreenAlertView({ onDismiss, onBackClick }) {
+  return React.createElement('div', { className: 'alert-overlay' },
+    React.createElement('button', {
+      className: 'bar-action',
+      style: { position: 'absolute', top: 16, left: 12, zIndex: 60, color: '#D93025' },
+      onClick: onBackClick
+    },
+      React.createElement(Icon, { name: 'back', size: 24, color: '#D93025' })
+    ),
+    React.createElement('div', { className: 'alert-top' },
+      React.createElement('div', { className: 'alert-icon-wrapper' },
+        React.createElement(Icon, { name: 'alarm', size: 40, color: '#FFFFFF' })
+      ),
+      React.createElement('div', { className: 'alert-title' }, '挪车提醒'),
+      React.createElement('div', { className: 'alert-subtitle' }, '检测到违规停车，请及时处理'),
+    ),
+    React.createElement('div', {},
+      React.createElement('div', { className: 'alert-card' },
+        React.createElement('div', { style: { fontSize: 18, fontWeight: 600, marginBottom: 12, color: '#1F1F1F' } }, '京A·12345'),
+        React.createElement('div', { className: 'alert-detail-row' },
+          React.createElement('span', { className: 'label' }, '车辆品牌'),
+          React.createElement('span', { className: 'value' }, '白色 大众帕萨特'),
+        ),
+        React.createElement('div', { className: 'alert-detail-row' },
+          React.createElement('span', { className: 'label' }, '违规类型'),
+          React.createElement('span', { className: 'value', style: { color: '#D93025' } }, '占用消防通道'),
+        ),
+        React.createElement('div', { className: 'alert-detail-row' },
+          React.createElement('span', { className: 'label' }, '检测时间'),
+          React.createElement('span', { className: 'value' }, '2026-06-29 14:32'),
+        ),
+        React.createElement('div', { className: 'alert-detail-row' },
+          React.createElement('span', { className: 'label' }, '通知方式'),
+          React.createElement('span', { className: 'value' }, '短信 + 电话'),
+        ),
+        React.createElement('div', { className: 'alert-detail-row', style: { borderBottom: 'none' } },
+          React.createElement('span', { className: 'label' }, '通知状态'),
+          React.createElement('span', { className: 'value', style: { color: '#D93025', fontWeight: 600 } }, '等待车主处理'),
+        ),
+      ),
+      React.createElement('button', {
+        className: 'alert-close-btn',
+        onClick: onDismiss
+      }, '关闭提醒'),
+    ),
+  );
+}
+
+/* ===== ALERT HISTORY SCREEN ===== */
+function AlertHistoryScreen({ history: histList, onClear }) {
+  const statusMap = {
+    notified: { label: '已通知', cls: 'notified' },
+    moved: { label: '已挪车', cls: 'moved' },
+    unresponsive: { label: '未响应', cls: 'unresponsive' },
+  };
+  return React.createElement('div', {},
+    React.createElement('div', { className: 'top-app-bar' },
+      React.createElement('span', { className: 'bar-title' }, '提醒历史'),
+      React.createElement('button', { className: 'bar-text-action', onClick: onClear || (() => {}) }, '清空'),
+    ),
+    React.createElement('div', { style: { paddingBottom: 8 } },
+      histList.map(item =>
+        React.createElement('div', { key: item.id, className: 'md3-list-item', style: { background: '#FFFFFF', margin: '1px 0' } },
+          React.createElement('div', { className: 'list-leading' },
+            React.createElement(Icon, { name: 'history', size: 20, color: '#1A73E8' })
+          ),
+          React.createElement('div', { className: 'list-text' },
+            React.createElement('div', { className: 'primary-text', style: { display: 'flex', alignItems: 'center', gap: 8 } },
+              item.plate,
+              React.createElement('span', {
+                className: 'status-chip ' + (statusMap[item.status]?.cls || 'notified')
+              }, statusMap[item.status]?.label || '已通知'),
+            ),
+            React.createElement('div', { className: 'secondary-text' },
+              item.reason + ' · ' + item.time
+            ),
+          ),
+          React.createElement('div', { className: 'list-trailing' },
+            React.createElement('button', { className: 'bar-action', onClick: () => {} },
+              React.createElement(Icon, { name: 'more-vert', size: 18, color: '#444746' })
+            ),
+          ),
+        )
+      ),
+    ),
+  );
+}
+
+/* ===== SETTINGS SCREEN ===== */
+function SettingsScreen() {
+  const [serviceOn, setServiceOn] = useState(true);
+  const [soundOn, setSoundOn] = useState(true);
+  const [vibrateOn, setVibrateOn] = useState(true);
+  const [nightMode, setNightMode] = useState(false);
+
+  const Toggle = ({ val, onToggle }) =>
+    React.createElement('button', {
+      className: 'md3-toggle' + (val ? ' active' : ''),
+      onClick: onToggle,
+      style: { flexShrink: 0 }
+    }, React.createElement('span', { className: 'thumb' }));
+
+  const SettingsToggle = ({ label, sub, val, onToggle }) =>
+    React.createElement('div', { className: 'settings-item' },
+      React.createElement('div', { className: 'set-icon' },
+        React.createElement(Icon, { name: sub ? 'notifications' : 'info', size: 20, color: '#444746' })
+      ),
+      React.createElement('div', { style: { flex: 1 } },
+        React.createElement('div', { className: 'set-text' }, label),
+        sub ? React.createElement('div', { className: 'set-sub' }, sub) : null,
+      ),
+      React.createElement(Toggle, { val, onToggle }),
+    );
+
+  return React.createElement('div', {},
+    React.createElement('div', { className: 'top-app-bar' },
+      React.createElement('span', { className: 'bar-title' }, '设置'),
+    ),
+    React.createElement('div', { className: 'section-header' }, '服务状态'),
+    React.createElement('div', { style: { background: '#FFFFFF' } },
+      React.createElement('div', { className: 'settings-item' },
+        React.createElement('div', { className: 'set-icon' },
+          React.createElement(Icon, { name: 'notifications-off', size: 20, color: '#444746' })
+        ),
+        React.createElement('div', { style: { flex: 1 } },
+          React.createElement('div', { className: 'set-text' }, '挪车通知服务'),
+          React.createElement('div', { className: 'set-sub' }, '接收违规停车通知'),
+        ),
+        React.createElement('span', {
+          className: 'md3-chip primary-chip',
+          style: { flexShrink: 0, fontSize: 11 }
+        }, serviceOn ? '运行中' : '已停止'),
+        React.createElement(Toggle, { val: serviceOn, onToggle: () => setServiceOn(!serviceOn) }),
+      ),
+    ),
+    React.createElement('div', { className: 'section-header' }, '通知设置'),
+    React.createElement('div', { style: { background: '#FFFFFF' } },
+      React.createElement(SettingsToggle, { label: '声音提醒', sub: '收到提醒时播放声音', val: soundOn, onToggle: () => setSoundOn(!soundOn) }),
+      React.createElement('div', { className: 'section-divider', style: { margin: '0 20px' } }),
+      React.createElement(SettingsToggle, { label: '震动提醒', sub: '收到提醒时震动', val: vibrateOn, onToggle: () => setVibrateOn(!vibrateOn) }),
+      React.createElement('div', { className: 'section-divider', style: { margin: '0 20px' } }),
+      React.createElement(SettingsToggle, { label: '夜间免打扰', sub: '22:00-07:00 静音', val: nightMode, onToggle: () => setNightMode(!nightMode) }),
+    ),
+    React.createElement('div', { className: 'section-header' }, '其他'),
+    React.createElement('div', { style: { background: '#FFFFFF' } },
+      React.createElement('div', { className: 'settings-item' },
+        React.createElement('div', { className: 'set-icon' },
+          React.createElement(Icon, { name: 'volume', size: 20, color: '#444746' })
+        ),
+        React.createElement('div', { style: { flex: 1 } },
+          React.createElement('div', { className: 'set-text' }, '提醒音量'),
+          React.createElement('div', { className: 'set-sub' }, '当前: 80%'),
+        ),
+        React.createElement(Icon, { name: 'arrow-down', size: 20, color: '#444746' }),
+      ),
+      React.createElement('div', { className: 'section-divider', style: { margin: '0 20px' } }),
+      React.createElement('div', { className: 'settings-item' },
+        React.createElement('div', { className: 'set-icon' },
+          React.createElement(Icon, { name: 'info', size: 20, color: '#444746' })
+        ),
+        React.createElement('div', { style: { flex: 1 } },
+          React.createElement('div', { className: 'set-text' }, '关于'),
+          React.createElement('div', { className: 'set-sub' }, '版本 2.1.0'),
+        ),
+        React.createElement(Icon, { name: 'arrow-down', size: 20, color: '#444746' }),
+      ),
+    ),
+    React.createElement('div', { style: { height: 20 } }),
+  );
+}
+
+/* ===== BOTTOM NAV ===== */
+function BottomNav({ tabs, activeTab, onTabChange }) {
+  return React.createElement('div', { className: 'bottom-nav' },
+    tabs.map((tab, idx) =>
+      React.createElement('button', {
+        key: idx,
+        className: 'nav-item' + (activeTab === idx ? ' active' : ''),
+        onClick: () => onTabChange(idx)
+      },
+        React.createElement('div', { className: 'nav-indicator' }),
+        React.createElement(Icon, {
+          name: tab.icon,
+          size: 22,
+          color: activeTab === idx ? '#1A73E8' : '#444746'
+        }),
+        React.createElement('span', {}, tab.label),
+      )
+    )
+  );
+}
+
+/* ===== PHONE FRAME ===== */
+const NAV_TABS = [
+  { label: '通知', icon: 'notifications' },
+  { label: '规则', icon: 'info' },
+  { label: '历史', icon: 'history' },
+  { label: '设置', icon: 'settings' },
+];
+
+function PhoneFrame({ label, initialTab, initialAlert, initialEdit }) {
+  const [currentTab, setCurrentTab] = useState(initialTab);
+  const [showEdit, setShowEdit] = useState(initialEdit || false);
+  const [alertActive, setAlertActive] = useState(initialAlert || false);
+  const [toastMsg, setToastMsg] = useState(null);
+  const [cars, setCars] = useState(SAMPLE.cars.map(c => ({...c})));
+  const [editCar, setEditCar] = useState(
+    initialEdit ? { ...SAMPLE.cars[0], vibration: true, ringtone: '来电铃声（默认）' } : null
+  );
+  const toastTimer = useRef(null);
+
+  const showToast = useCallback((msg) => {
+    setToastMsg(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToastMsg(null), 2000);
+  }, []);
+
+  const handleBackFromAlert = useCallback(() => {
+    showToast('请先关闭提醒');
+  }, [showToast]);
+
+  const handleDismissAlert = useCallback(() => {
+    setAlertActive(false);
+    showToast('提醒已关闭');
+  }, [showToast]);
+
+  const handleToggle = useCallback((carId) => {
+    setCars(prev => prev.map(c => c.id === carId ? {...c, active: !c.active} : c));
+  }, []);
+
+  const handleEdit = useCallback((car) => {
+    setEditCar(car);
+    setShowEdit(true);
+  }, []);
+
+  const handleBackFromEdit = useCallback(() => {
+    setShowEdit(false);
+    setEditCar(null);
+  }, []);
+
+  const handleTabChange = useCallback((idx) => {
+    setShowEdit(false);
+    setEditCar(null);
+    setCurrentTab(idx);
+  }, []);
+
+  const screenStyle = { position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' };
+
+  const renderScreen = () => {
+    if (alertActive) {
+      return React.createElement(FullScreenAlertView, {
+        onDismiss: handleDismissAlert,
+        onBackClick: handleBackFromAlert,
+      });
+    }
+    if (showEdit && editCar) {
+      return React.createElement(EditNotificationScreen, {
+        car: editCar,
+        onBack: handleBackFromEdit,
+        onToggleVibration: () => {},
+        onRingtonePick: () => {},
+      });
+    }
+    switch (currentTab) {
+      case 0:
+        return React.createElement(NotificationListScreen, {
+          cars,
+          onToggle: handleToggle,
+          onEdit: handleEdit,
+        });
+      case 1:
+        return React.createElement(RuleManagementScreen, { rules: SAMPLE.rules });
+      case 2:
+        return React.createElement(AlertHistoryScreen, { history: SAMPLE.history });
+      case 3:
+        return React.createElement(SettingsScreen, {});
+      default:
+        return null;
+    }
+  };
+
+  const bottomNavVisible = !alertActive;
+
+  return React.createElement('div', { className: 'phone-wrapper' },
+    React.createElement('div', { className: 'phone-label' }, label),
+    React.createElement('div', { className: 'phone-bezel' },
+      React.createElement('div', { className: 'camera-punch' }),
+      React.createElement('div', { className: 'phone-screen' },
+        React.createElement(StatusBar, {}),
+        React.createElement('div', { style: screenStyle },
+          React.createElement('div', { className: 'screen-content' },
+            renderScreen()
+          ),
+          React.createElement(Toast, { message: toastMsg, visible: !!toastMsg }),
+        ),
+        bottomNavVisible
+          ? React.createElement(BottomNav, {
+              tabs: NAV_TABS,
+              activeTab: showEdit ? -1 : currentTab,
+              onTabChange: handleTabChange,
+            })
+          : null,
+      ),
+    ),
+  );
+}
+
+/* ===== APP ===== */
+const PHONES = [
+  { label: '通知项列表', tab: 0, alert: false, edit: false },
+  { label: '通知项编辑', tab: 0, alert: false, edit: true },
+  { label: '触发规则管理', tab: 1, alert: false, edit: false },
+  { label: '全屏提醒页', tab: 0, alert: true, edit: false },
+  { label: '提醒历史', tab: 2, alert: false, edit: false },
+  { label: '设置页', tab: 3, alert: false, edit: false },
+];
+
+function App() {
+  return React.createElement('div', {},
+    React.createElement('div', { className: 'page-header' },
+      React.createElement('h1', {}, '挪车通知'),
+      React.createElement('p', {}, 'Material Design 3 · 交互原型设计'),
+    ),
+    React.createElement('div', { className: 'phone-grid' },
+      ...PHONES.map((p, idx) =>
+        React.createElement(PhoneFrame, {
+          key: idx,
+          label: p.label,
+          initialTab: p.tab,
+          initialAlert: p.alert,
+          initialEdit: p.edit,
+        })
+      ),
+    ),
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+</script>
+</body>
+</html>

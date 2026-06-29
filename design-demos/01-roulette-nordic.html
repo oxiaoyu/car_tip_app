@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>挪车通知 - Nordic Design Prototype</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;min-height:100vh;background:#F5F7FA;font-family:-apple-system,BlinkMacSystemFont,Roboto,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;color:#202124;-webkit-font-smoothing:antialiased}
+#root{width:100%;min-height:100vh}
+.nordic-phone-label{font-size:13px;color:#5F6368;font-style:italic;text-align:center;margin-bottom:8px;letter-spacing:0.3px;padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@keyframes alertPulse{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes alertGlow{0%{box-shadow:0 0 20px rgba(229,57,53,0.3)}50%{box-shadow:0 0 40px rgba(229,57,53,0.6)}100%{box-shadow:0 0 20px rgba(229,57,53,0.3)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.nordic-screen-item{animation:slideUp 0.3s ease-out both}
+.nordic-screen-item:nth-child(1){animation-delay:0.05s}
+.nordic-screen-item:nth-child(2){animation-delay:0.1s}
+.nordic-screen-item:nth-child(3){animation-delay:0.15s}
+.nordic-screen-item:nth-child(4){animation-delay:0.2s}
+.nordic-screen-item:nth-child(5){animation-delay:0.25s}
+.nordic-fab{position:absolute;bottom:64px;right:16px;width:48px;height:48px;border-radius:50%;background:#1A73E8;color:#fff;border:none;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(26,115,232,0.35);transition:transform 0.15s,box-shadow 0.15s;z-index:5;padding:0;line-height:1}
+.nordic-fab:hover{transform:scale(1.08);box-shadow:0 6px 16px rgba(26,115,232,0.45)}
+.nordic-fab:active{transform:scale(0.95)}
+.nordic-toggle{position:relative;width:40px;height:22px;flex-shrink:0;cursor:pointer}
+.nordic-toggle input{opacity:0;width:0;height:0}
+.nordic-toggle-slider{position:absolute;inset:0;background:#DADCE0;border-radius:22px;transition:background 0.2s}
+.nordic-toggle-slider::before{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+.nordic-toggle input:checked + .nordic-toggle-slider{background:#1A73E8}
+.nordic-toggle input:checked + .nordic-toggle-slider::before{transform:translateX(18px)}
+.nordic-btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:background 0.15s,box-shadow 0.15s;font-family:inherit}
+.nordic-btn-primary{background:#1A73E8;color:#fff}
+.nordic-btn-primary:hover{background:#1765CC}
+.nordic-btn-secondary{background:#E8F0FE;color:#1A73E8}
+.nordic-btn-secondary:hover{background:#D2E3FC}
+.nordic-btn-danger{background:#FCE8E8;color:#E53935}
+.nordic-btn-danger:hover{background:#F5C6C6}
+.nordic-btn-ghost{background:transparent;color:#5F6368;padding:6px 12px}
+.nordic-btn-ghost:hover{background:#F1F3F4}
+.nordic-scroll::-webkit-scrollbar{width:3px}
+.nordic-scroll::-webkit-scrollbar-track{background:transparent}
+.nordic-scroll::-webkit-scrollbar-thumb{background:#DADCE0;border-radius:3px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useCallback } = React;
+
+/* ── Sample Data ── */
+const NOTIF_ITEMS = [
+  { id: 'n1', name: '挪车提醒-工作', enabled: true, ruleCount: 2 },
+  { id: 'n2', name: '挪车提醒-家用', enabled: false, ruleCount: 1 },
+];
+
+const RULES_DATA = [
+  { id: 'r1', phoneKeyword: '138', contentKeyword: '挪车', enabled: true },
+  { id: 'r2', phoneKeyword: '139', contentKeyword: '挡道', enabled: true },
+  { id: 'r3', phoneKeyword: '10086', contentKeyword: '停车', enabled: false },
+];
+
+const HISTORY_DATA = [
+  { id: 'h1', sender: '138****5678', message: '您好，您的车辆在朝阳区望京SOHO附近挡住通道，请尽快挪车。', time: '14:32', date: '2024-01-15', dismissedTime: '14:35:20' },
+  { id: 'h2', sender: '139****1234', message: '麻烦挪下车，挡住出口了，谢谢。', time: '12:10', date: '2024-01-15', dismissedTime: '12:15:03' },
+  { id: 'h3', sender: '186****9000', message: '你的车挡道了，请赶快来挪一下。', time: '09:20', date: '2024-01-14', dismissedTime: '09:25:47' },
+  { id: 'h4', sender: '135****4321', message: '挪车！你车停在我车位前面了。', time: '22:05', date: '2024-01-13', dismissedTime: '22:08:12' },
+];
+
+const EDIT_RULES = [
+  { phone: '138', content: '挪车' },
+  { phone: '139', content: '挡道' },
+];
+
+/* ── SVG Icons ── */
+const Icons = {
+  list: (active) => React.createElement('svg', { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: active ? '#1A73E8' : '#5F6368', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' },
+    React.createElement('line', { x1: 8, y1: 6, x2: 21, y2: 6 }),
+    React.createElement('line', { x1: 8, y1: 12, x2: 21, y2: 12 }),
+    React.createElement('line', { x1: 8, y1: 18, x2: 21, y2: 18 }),
+    React.createElement('line', { x1: 3, y1: 6, x2: 3.01, y2: 6 }),
+    React.createElement('line', { x1: 3, y1: 12, x2: 3.01, y2: 12 }),
+    React.createElement('line', { x1: 3, y1: 18, x2: 3.01, y2: 18 })
+  ),
+  rules: (active) => React.createElement('svg', { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: active ? '#1A73E8' : '#5F6368', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' },
+    React.createElement('path', { d: 'M12 2L2 7l10 5 10-5-10-5z' }),
+    React.createElement('path', { d: 'M2 17l10 5 10-5' }),
+    React.createElement('path', { d: 'M2 12l10 5 10-5' })
+  ),
+  history: (active) => React.createElement('svg', { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: active ? '#1A73E8' : '#5F6368', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' },
+    React.createElement('circle', { cx: 12, cy: 12, r: 10 }),
+    React.createElement('polyline', { points: '12 6 12 12 16 14' })
+  ),
+  settings: (active) => React.createElement('svg', { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: active ? '#1A73E8' : '#5F6368', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' },
+    React.createElement('circle', { cx: 12, cy: 12, r: 3 }),
+    React.createElement('path', { d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z' })
+  ),
+  back: () => React.createElement('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: '#5F6368', strokeWidth: 2.2, strokeLinecap: 'round', strokeLinejoin: 'round' },
+    React.createElement('polyline', { points: '15 18 9 12 15 6' })
+  ),
+  chevronRight: () => React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: '#9AA0A6', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' },
+    React.createElement('polyline', { points: '9 18 15 12 9 6' })
+  ),
+  plus: () => React.createElement('svg', { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: '#fff', strokeWidth: 2.5, strokeLinecap: 'round' },
+    React.createElement('line', { x1: 12, y1: 5, x2: 12, y2: 19 }),
+    React.createElement('line', { x1: 5, y1: 12, x2: 19, y2: 12 })
+  ),
+  edit: () => React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: '#5F6368', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' },
+    React.createElement('path', { d: 'M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7' }),
+    React.createElement('path', { d: 'M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z' })
+  ),
+  trash: () => React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: '#E53935', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' },
+    React.createElement('polyline', { points: '3 6 5 6 21 6' }),
+    React.createElement('path', { d: 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2' })
+  ),
+  close: () => React.createElement('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: '#fff', strokeWidth: 2.5, strokeLinecap: 'round' },
+    React.createElement('line', { x1: 18, y1: 6, x2: 6, y2: 18 }),
+    React.createElement('line', { x1: 6, y1: 6, x2: 18, y2: 18 })
+  ),
+  check: () => React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: '#34A853', strokeWidth: 3, strokeLinecap: 'round', strokeLinejoin: 'round' },
+    React.createElement('polyline', { points: '20 6 9 17 4 12' })
+  ),
+};
+
+/* ── Shared Components ── */
+
+function BottomNav({ activeTab, onTabChange, hidden }) {
+  if (hidden) return null;
+  const tabs = [
+    { key: 'list', label: '通知项', icon: Icons.list },
+    { key: 'rules', label: '规则', icon: Icons.rules },
+    { key: 'history', label: '历史', icon: Icons.history },
+    { key: 'settings', label: '设置', icon: Icons.settings },
+  ];
+  return React.createElement('div', {
+    style: {
+      display: 'flex', borderTop: '1px solid #E8EAED',
+      background: '#FAFBFC', flexShrink: 0, height: 50,
+    }
+  },
+    tabs.map(t =>
+      React.createElement('button', {
+        key: t.key,
+        onClick: () => onTabChange(t.key),
+        style: {
+          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', border: 'none', background: 'transparent',
+          cursor: 'pointer', padding: '4px 0', gap: 2,
+          borderTop: activeTab === t.key ? '2px solid #1A73E8' : '2px solid transparent',
+          marginTop: '-1px',
+        }
+      },
+        t.icon(activeTab === t.key),
+        React.createElement('span', {
+          style: {
+            fontSize: 10, color: activeTab === t.key ? '#1A73E8' : '#5F6368',
+            fontWeight: activeTab === t.key ? 500 : 400,
+            letterSpacing: 0.2,
+          }
+        }, t.label)
+      )
+    )
+  );
+}
+
+function Toggle({ checked, onChange, id }) {
+  return React.createElement('label', { className: 'nordic-toggle', htmlFor: id },
+    React.createElement('input', { type: 'checkbox', id, checked, onChange }),
+    React.createElement('span', { className: 'nordic-toggle-slider' })
+  );
+}
+
+function HeaderBar({ title, onBack, style: extStyle, theme }) {
+  const isDark = theme === 'dark';
+  return React.createElement('div', {
+    style: {
+      display: 'flex', alignItems: 'center', padding: '12px 16px',
+      borderBottom: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid #E8EAED',
+      flexShrink: 0, background: isDark ? 'transparent' : '#fff',
+      ...extStyle,
+    }
+  },
+    onBack ? React.createElement('button', {
+      onClick: onBack,
+      style: {
+        background: 'none', border: 'none', cursor: 'pointer',
+        padding: '4px 8px 4px 0', marginRight: 4, display: 'flex',
+        alignItems: 'center',
+      }
+    }, Icons.back()) : null,
+    React.createElement('span', {
+      style: {
+        fontSize: 16, fontWeight: 600, color: isDark ? '#fff' : '#202124',
+        flex: 1,
+      }
+    }, title)
+  );
+}
+
+/* ── Screen Components ── */
+
+/* Screen A: Notification List */
+function NotificationListScreen({ onNavigate }) {
+  const [items, setItems] = useState(NOTIF_ITEMS);
+  const toggleItem = useCallback((id) => {
+    setItems(prev => prev.map(it =>
+      it.id === id ? { ...it, enabled: !it.enabled } : it
+    ));
+  }, []);
+
+  return React.createElement('div', {
+    style: { display: 'flex', flexDirection: 'column', height: '100%', background: '#F5F7FA' }
+  },
+    HeaderBar({ title: '通知项' }),
+    React.createElement('div', {
+      style: { flex: 1, overflow: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 },
+      className: 'nordic-scroll'
+    },
+      items.map((item, i) =>
+        React.createElement('div', {
+          key: item.id,
+          className: 'nordic-screen-item',
+          style: {
+            background: '#fff', borderRadius: 12, padding: '14px 16px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+            display: 'flex', alignItems: 'center', gap: 12,
+            cursor: 'pointer', transition: 'box-shadow 0.15s',
+          },
+          onClick: () => onNavigate && onNavigate('edit', item),
+        },
+          React.createElement('div', { style: { flex: 1, minWidth: 0 } },
+            React.createElement('div', {
+              style: { fontSize: 14, fontWeight: 500, color: '#202124', marginBottom: 4 }
+            }, item.name),
+            React.createElement('div', {
+              style: { display: 'flex', alignItems: 'center', gap: 6 }
+            },
+              React.createElement('span', {
+                style: {
+                  fontSize: 11, color: '#fff', background: '#1A73E8',
+                  borderRadius: 10, padding: '2px 8px', fontWeight: 500,
+                }
+              }, `${item.ruleCount}条规则`),
+            ),
+          ),
+          React.createElement(Toggle, {
+            checked: item.enabled,
+            onChange: (e) => { e.stopPropagation(); toggleItem(item.id); },
+            id: `toggle-${item.id}`,
+          }),
+        )
+      ),
+    ),
+    React.createElement('button', {
+      className: 'nordic-fab',
+      onClick: () => onNavigate && onNavigate('edit', null),
+    }, Icons.plus()),
+    BottomNav({ activeTab: 'list', onTabChange: onNavigate || (() => {}) }),
+  );
+}
+
+/* Screen B: Edit Notification */
+function EditNotificationScreen({ onBack, onNavigate }) {
+  const [name, setName] = useState('挪车提醒-工作');
+  const [vibration, setVibration] = useState(true);
+  const [ringtone, setRingtone] = useState('系统默认铃声');
+  const [rules, setRules] = useState(EDIT_RULES);
+  const [showRingtonePicker, setShowRingtonePicker] = useState(false);
+  const ringtones = ['系统默认铃声', '悠扬', '提示音', '蜂鸣'];
+
+  return React.createElement('div', {
+    style: { display: 'flex', flexDirection: 'column', height: '100%', background: '#F5F7FA' }
+  },
+    HeaderBar({ title: '编辑通知项', onBack }),
+    React.createElement('div', {
+      style: { flex: 1, overflow: 'auto', padding: '16px 16px 8px', display: 'flex', flexDirection: 'column', gap: 14 },
+      className: 'nordic-scroll'
+    },
+      /* Name field */
+      React.createElement('div', { style: {} },
+        React.createElement('label', { style: { fontSize: 12, color: '#5F6368', fontWeight: 500, marginBottom: 6, display: 'block' } }, '通知名称'),
+        React.createElement('input', {
+          value: name,
+          onChange: e => setName(e.target.value),
+          style: {
+            width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #DADCE0',
+            fontSize: 14, color: '#202124', outline: 'none', fontFamily: 'inherit',
+            background: '#fff', transition: 'border-color 0.15s',
+          },
+          onFocus: e => { e.target.style.borderColor = '#1A73E8'; },
+          onBlur: e => { e.target.style.borderColor = '#DADCE0'; },
+        })
+      ),
+      /* Vibration toggle */
+      React.createElement('div', {
+        style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }
+      },
+        React.createElement('span', { style: { fontSize: 14, color: '#202124' } }, '震动'),
+        Toggle({ checked: vibration, onChange: () => setVibration(v => !v), id: 'vib-toggle' })
+      ),
+      /* Ringtone selector */
+      React.createElement('div', { style: { position: 'relative' } },
+        React.createElement('label', { style: { fontSize: 12, color: '#5F6368', fontWeight: 500, marginBottom: 6, display: 'block' } }, '提醒铃声'),
+        React.createElement('button', {
+          onClick: () => setShowRingtonePicker(p => !p),
+          style: {
+            width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #DADCE0',
+            fontSize: 14, color: '#202124', background: '#fff', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            fontFamily: 'inherit',
+          }
+        },
+          React.createElement('span', null, ringtone),
+          Icons.chevronRight()
+        ),
+        showRingtonePicker && React.createElement('div', {
+          style: {
+            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+            background: '#fff', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+            marginTop: 4, overflow: 'hidden',
+          }
+        },
+          ringtones.map(r =>
+            React.createElement('button', {
+              key: r,
+              onClick: () => { setRingtone(r); setShowRingtonePicker(false); },
+              style: {
+                width: '100%', padding: '10px 12px', border: 'none',
+                background: r === ringtone ? '#E8F0FE' : 'transparent',
+                fontSize: 13, textAlign: 'left', cursor: 'pointer',
+                color: r === ringtone ? '#1A73E8' : '#202124',
+                fontFamily: 'inherit',
+              }
+            }, r)
+          )
+        ),
+      ),
+      /* Preview button */
+      React.createElement('button', {
+        className: 'nordic-btn nordic-btn-secondary',
+        style: { width: '100%' },
+        onClick: () => onNavigate && onNavigate('alert', null),
+      }, '预览提醒效果'),
+      /* Selected rules */
+      React.createElement('div', { style: {} },
+        React.createElement('div', {
+          style: { fontSize: 12, color: '#5F6368', fontWeight: 500, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }
+        },
+          React.createElement('span', null, '触发规则'),
+          React.createElement('button', {
+            className: 'nordic-btn nordic-btn-ghost',
+            style: { fontSize: 12, padding: '4px 10px', color: '#1A73E8' },
+            onClick: () => onNavigate && onNavigate('rules'),
+          }, '+ 添加规则'),
+        ),
+        rules.map((r, i) =>
+          React.createElement('div', {
+            key: i,
+            style: {
+              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+              background: '#F8F9FA', borderRadius: 8, marginBottom: 6,
+              fontSize: 13, color: '#3C4043',
+            }
+          },
+            React.createElement('span', { style: { flex: 1 } },
+              `手机号含 ${r.phone} + 内容含 ${r.content}`
+            ),
+          )
+        ),
+      ),
+      /* Save button */
+      React.createElement('button', {
+        className: 'nordic-btn nordic-btn-primary',
+        style: { width: '100%', marginTop: 12, padding: '12px 20px', fontSize: 14 },
+        onClick: () => {},
+      }, '保存'),
+    ),
+  );
+}
+
+/* Screen C: Rule Management */
+function RuleManagementScreen({ onNavigate }) {
+  const [rules, setRules] = useState(RULES_DATA);
+  const [editId, setEditId] = useState(null);
+
+  return React.createElement('div', {
+    style: { display: 'flex', flexDirection: 'column', height: '100%', background: '#F5F7FA' }
+  },
+    HeaderBar({ title: '触发规则' }),
+    React.createElement('div', {
+      style: { flex: 1, overflow: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 },
+      className: 'nordic-scroll'
+    },
+      rules.map((rule, i) =>
+        React.createElement('div', {
+          key: rule.id,
+          className: 'nordic-screen-item',
+          style: {
+            background: '#fff', borderRadius: 12, padding: '14px 16px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+          }
+        },
+          React.createElement('div', {
+            style: { display: 'flex', alignItems: 'center', gap: 10 }
+          },
+            React.createElement('div', { style: { flex: 1, minWidth: 0 } },
+              React.createElement('div', {
+                style: { fontSize: 13, color: '#3C4043', lineHeight: 1.5, marginBottom: 2 }
+              },
+                React.createElement('span', { style: { color: '#1A73E8', fontWeight: 500 } }, rule.phoneKeyword),
+                ' + ',
+                React.createElement('span', { style: { color: '#E37400', fontWeight: 500 } }, rule.contentKeyword)
+              ),
+              React.createElement('div', { style: { fontSize: 11, color: '#9AA0A6', marginTop: 2 } },
+                `手机号含 ${rule.phoneKeyword} 且内容含 ${rule.contentKeyword}`
+              ),
+            ),
+            React.createElement('div', { style: { display: 'flex', gap: 4 } },
+              React.createElement('button', {
+                style: { background: 'none', border: 'none', cursor: 'pointer', padding: 4 },
+                onClick: () => setEditId(editId === rule.id ? null : rule.id),
+              }, Icons.edit()),
+              React.createElement('button', {
+                style: { background: 'none', border: 'none', cursor: 'pointer', padding: 4 },
+                onClick: () => setRules(prev => prev.filter(r => r.id !== rule.id)),
+              }, Icons.trash()),
+            ),
+          ),
+          editId === rule.id && React.createElement('div', {
+            style: {
+              marginTop: 12, paddingTop: 12, borderTop: '1px solid #E8EAED',
+              display: 'flex', flexDirection: 'column', gap: 8,
+            }
+          },
+            React.createElement('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+              React.createElement('span', { style: { fontSize: 12, color: '#5F6368', minWidth: 48 } }, '手机号:'),
+              React.createElement('input', {
+                defaultValue: rule.phoneKeyword,
+                style: {
+                  flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #DADCE0',
+                  fontSize: 13, fontFamily: 'inherit', outline: 'none',
+                }
+              }),
+            ),
+            React.createElement('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+              React.createElement('span', { style: { fontSize: 12, color: '#5F6368', minWidth: 48 } }, '内容:'),
+              React.createElement('input', {
+                defaultValue: rule.contentKeyword,
+                style: {
+                  flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #DADCE0',
+                  fontSize: 13, fontFamily: 'inherit', outline: 'none',
+                }
+              }),
+            ),
+            React.createElement('div', { style: { display: 'flex', gap: 8, justifyContent: 'flex-end' } },
+              React.createElement('button', {
+                className: 'nordic-btn nordic-btn-secondary',
+                style: { padding: '6px 16px', fontSize: 12 },
+                onClick: () => setEditId(null),
+              }, '取消'),
+              React.createElement('button', {
+                className: 'nordic-btn nordic-btn-primary',
+                style: { padding: '6px 16px', fontSize: 12 },
+                onClick: () => setEditId(null),
+              }, '保存'),
+            ),
+          ),
+        )
+      ),
+    ),
+    React.createElement('button', {
+      className: 'nordic-fab',
+      onClick: () => setRules(prev => [...prev, {
+        id: `r${Date.now()}`,
+        phoneKeyword: '新号段',
+        contentKeyword: '新关键词',
+        enabled: true,
+      }]),
+    }, Icons.plus()),
+    BottomNav({ activeTab: 'rules', onTabChange: onNavigate || (() => {}) }),
+  );
+}
+
+/* Screen D: Full-screen Alert */
+function FullScreenAlertScreen({ onDismiss, onBack }) {
+  const [dismissed, setDismissed] = useState(false);
+  const [showBackMsg, setShowBackMsg] = useState(false);
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    setTimeout(() => {
+      if (onDismiss) onDismiss();
+    }, 600);
+  };
+
+  if (dismissed) {
+    return React.createElement('div', {
+      style: {
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: '100%', background: '#F5F7FA', color: '#34A853',
+        fontSize: 16, fontWeight: 500, flexDirection: 'column', gap: 12,
+      }
+    },
+      React.createElement('div', {
+        style: {
+          width: 56, height: 56, borderRadius: '50%', background: '#E6F4EA',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }
+      }, Icons.check()),
+      '提醒已关闭',
+      React.createElement('span', { style: { fontSize: 13, color: '#5F6368', fontWeight: 400 } },
+        '短信内容已记录至历史'
+      ),
+    );
+  }
+
+  return React.createElement('div', {
+    style: {
+      display: 'flex', flexDirection: 'column', height: '100%',
+      background: 'linear-gradient(-45deg, #D32F2F, #E53935, #C62828, #E53935)',
+      backgroundSize: '400% 400%',
+      animation: 'alertPulse 4s ease infinite, alertGlow 2s ease infinite',
+      position: 'relative',
+      color: '#fff',
+    }
+  },
+    /* Back button that doesn't dismiss */
+    React.createElement('button', {
+      onClick: () => setShowBackMsg(true),
+      style: {
+        position: 'absolute', top: 12, left: 12, zIndex: 2,
+        background: 'rgba(255,255,255,0.15)', border: 'none',
+        borderRadius: '50%', width: 36, height: 36,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', backdropFilter: 'blur(4px)',
+      }
+    },
+      React.createElement('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: '#fff', strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round' },
+        React.createElement('polyline', { points: '15 18 9 12 15 6' })
+      ),
+    ),
+    showBackMsg && React.createElement('div', {
+      style: {
+        position: 'absolute', top: 52, left: 12, zIndex: 2,
+        background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '8px 12px',
+        fontSize: 11, color: '#fff', backdropFilter: 'blur(4px)',
+        animation: 'fadeIn 0.2s ease-out',
+      }
+    }, '此提醒无法通过返回关闭，需点击下方关闭按钮'),
+
+    /* Urgent badge */
+    React.createElement('div', {
+      style: {
+        padding: '44px 20px 12px', textAlign: 'center',
+        animation: 'slideUp 0.4s ease-out',
+      }
+    },
+      React.createElement('div', {
+        style: {
+          display: 'inline-block', padding: '4px 16px', borderRadius: 20,
+          background: 'rgba(255,255,255,0.2)', fontSize: 12, fontWeight: 600,
+          letterSpacing: 1, backdropFilter: 'blur(4px)',
+        }
+      }, '紧急提醒'),
+    ),
+
+    /* Alert content */
+    React.createElement('div', {
+      style: {
+        flex: 1, display: 'flex', flexDirection: 'column',
+        justifyContent: 'center', padding: '0 24px', gap: 16,
+      }
+    },
+      React.createElement('div', { style: { animation: 'slideUp 0.4s ease-out 0.1s both' } },
+        React.createElement('div', { style: { fontSize: 12, opacity: 0.8, marginBottom: 4 } }, '发信人'),
+        React.createElement('div', { style: { fontSize: 18, fontWeight: 600 } }, '138****5678'),
+      ),
+      React.createElement('div', { style: { animation: 'slideUp 0.4s ease-out 0.2s both' } },
+        React.createElement('div', { style: { fontSize: 12, opacity: 0.8, marginBottom: 4 } }, '短信内容'),
+        React.createElement('div', {
+          style: {
+            fontSize: 14, lineHeight: 1.6, opacity: 0.95,
+            background: 'rgba(255,255,255,0.1)', borderRadius: 10,
+            padding: '12px 14px', backdropFilter: 'blur(4px)',
+          }
+        }, '您好，您的车辆在朝阳区望京SOHO附近挡住通道，请尽快挪车，周围车主已等候多时。'),
+      ),
+      React.createElement('div', { style: { animation: 'slideUp 0.4s ease-out 0.3s both' } },
+        React.createElement('div', { style: { fontSize: 12, opacity: 0.8, marginBottom: 4 } }, '触发时间'),
+        React.createElement('div', { style: { fontSize: 15, fontWeight: 500 } }, '2024-01-15 14:32:18'),
+      ),
+    ),
+
+    /* Dismiss button */
+    React.createElement('div', {
+      style: { padding: '16px 24px 32px', textAlign: 'center' }
+    },
+      React.createElement('button', {
+        onClick: handleDismiss,
+        style: {
+          width: '70%', maxWidth: 240, padding: '16px 0', borderRadius: 50,
+          border: '2px solid rgba(255,255,255,0.8)', background: 'rgba(255,255,255,0.15)',
+          color: '#fff', fontSize: 17, fontWeight: 600, cursor: 'pointer',
+          backdropFilter: 'blur(4px)', letterSpacing: 1,
+          transition: 'background 0.2s, transform 0.1s',
+          fontFamily: 'inherit',
+        },
+        onMouseEnter: e => { e.target.style.background = 'rgba(255,255,255,0.25)'; },
+        onMouseLeave: e => { e.target.style.background = 'rgba(255,255,255,0.15)'; },
+      }, '关闭提醒'),
+    ),
+  );
+}
+
+/* Screen E: Alert History */
+function AlertHistoryScreen({ onNavigate }) {
+  const [history, setHistory] = useState(HISTORY_DATA);
+
+  return React.createElement('div', {
+    style: { display: 'flex', flexDirection: 'column', height: '100%', background: '#F5F7FA' }
+  },
+    HeaderBar({ title: '提醒历史' }),
+    React.createElement('div', {
+      style: { flex: 1, overflow: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 },
+      className: 'nordic-scroll'
+    },
+      history.map((item, i) =>
+        React.createElement('div', {
+          key: item.id,
+          className: 'nordic-screen-item',
+          style: {
+            background: '#fff', borderRadius: 12, padding: '14px 16px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+          }
+        },
+          React.createElement('div', {
+            style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }
+          },
+            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+              React.createElement('span', { style: { fontSize: 14, fontWeight: 600, color: '#202124' } }, item.sender),
+              React.createElement('span', { style: { fontSize: 11, color: '#9AA0A6' } }, item.time),
+            ),
+            React.createElement('button', {
+              style: { background: 'none', border: 'none', cursor: 'pointer', padding: 2 },
+              onClick: () => setHistory(prev => prev.filter(h => h.id !== item.id)),
+            }, Icons.trash()),
+          ),
+          React.createElement('div', {
+            style: { fontSize: 13, color: '#5F6368', lineHeight: 1.5, marginBottom: 8 }
+          }, item.message),
+          React.createElement('div', {
+            style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
+          },
+            React.createElement('span', { style: { fontSize: 11, color: '#9AA0A6' } }, item.date),
+            React.createElement('span', {
+              style: {
+                fontSize: 11, color: '#34A853', background: '#E6F4EA',
+                borderRadius: 10, padding: '2px 8px',
+              }
+            }, `已解除 ${item.dismissedTime}`),
+          ),
+        )
+      ),
+      history.length === 0 && React.createElement('div', {
+        style: {
+          textAlign: 'center', padding: '40px 20px', color: '#9AA0A6',
+          fontSize: 13,
+        }
+      }, '暂无提醒记录'),
+    ),
+    BottomNav({ activeTab: 'history', onTabChange: onNavigate || (() => {}) }),
+  );
+}
+
+/* Screen F: Settings */
+function SettingsScreen({ onNavigate }) {
+  const [serviceOn, setServiceOn] = useState(true);
+  const permissions = [
+    { label: '短信权限', granted: true, desc: '用于读取短信内容以匹配规则' },
+    { label: '通知权限', granted: true, desc: '用于显示全屏提醒通知' },
+  ];
+  const guides = [
+    '华为：设置 > 应用 > 自启动管理',
+    '小米：设置 > 应用 > 权限 > 后台弹出界面',
+    'OPPO：设置 > 电池 > 耗电保护 > 后台冻结',
+  ];
+
+  return React.createElement('div', {
+    style: { display: 'flex', flexDirection: 'column', height: '100%', background: '#F5F7FA' }
+  },
+    HeaderBar({ title: '设置' }),
+    React.createElement('div', {
+      style: { flex: 1, overflow: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 },
+      className: 'nordic-scroll'
+    },
+      /* Service toggle */
+      React.createElement('div', {
+        style: {
+          background: '#fff', borderRadius: 12, padding: '16px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }
+      },
+        React.createElement('div', null,
+          React.createElement('div', { style: { fontSize: 14, fontWeight: 500, color: '#202124', marginBottom: 2 } }, '通知服务'),
+          React.createElement('div', { style: { fontSize: 12, color: '#5F6368' } }, '开启后监听短信并触发提醒'),
+        ),
+        Toggle({ checked: serviceOn, onChange: () => setServiceOn(s => !s), id: 'service-toggle' }),
+      ),
+      /* Permissions */
+      React.createElement('div', {
+        style: {
+          background: '#fff', borderRadius: 12, padding: '6px 0',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+        }
+      },
+        React.createElement('div', {
+          style: { fontSize: 12, color: '#5F6368', fontWeight: 500, padding: '8px 16px 4px' }
+        }, '权限检查'),
+        permissions.map((p, i) =>
+          React.createElement('div', {
+            key: i,
+            style: {
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '10px 16px',
+              borderTop: i > 0 ? '1px solid #F1F3F4' : 'none',
+            }
+          },
+            React.createElement('div', {
+              style: {
+                width: 22, height: 22, borderRadius: '50%',
+                background: p.granted ? '#E6F4EA' : '#FCE8E8',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }
+            },
+              p.granted
+                ? React.createElement('svg', { width: 12, height: 12, viewBox: '0 0 24 24', fill: 'none', stroke: '#34A853', strokeWidth: 4, strokeLinecap: 'round', strokeLinejoin: 'round' },
+                    React.createElement('polyline', { points: '20 6 9 17 4 12' })
+                  )
+                : React.createElement('svg', { width: 12, height: 12, viewBox: '0 0 24 24', fill: 'none', stroke: '#E53935', strokeWidth: 4, strokeLinecap: 'round' },
+                    React.createElement('line', { x1: 18, y1: 6, x2: 6, y2: 18 }),
+                    React.createElement('line', { x1: 6, y1: 6, x2: 18, y2: 18 })
+                  ),
+            ),
+            React.createElement('div', { style: { flex: 1 } },
+              React.createElement('div', { style: { fontSize: 14, color: '#202124' } }, `${p.label}${p.granted ? ' 已授权' : ' 未授权'}`),
+              React.createElement('div', { style: { fontSize: 11, color: '#9AA0A6', marginTop: 1 } }, p.desc),
+            ),
+          )
+        ),
+      ),
+      /* Background guide */
+      React.createElement('div', {
+        style: {
+          background: '#fff', borderRadius: 12, padding: '6px 0',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+        }
+      },
+        React.createElement('div', {
+          style: { fontSize: 12, color: '#5F6368', fontWeight: 500, padding: '8px 16px 4px' }
+        }, '厂商后台保活引导'),
+        guides.map((g, i) =>
+          React.createElement('button', {
+            key: i,
+            style: {
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '10px 16px', border: 'none', borderTop: i > 0 ? '1px solid #F1F3F4' : 'none',
+              width: '100%', background: 'transparent', cursor: 'pointer',
+              fontFamily: 'inherit', fontSize: 13, color: '#3C4043', textAlign: 'left',
+            }
+          },
+            React.createElement('span', { style: { flex: 1 } }, g),
+            Icons.chevronRight(),
+          )
+        ),
+      ),
+      /* Version */
+      React.createElement('div', {
+        style: {
+          textAlign: 'center', padding: '16px 0 8px', color: '#9AA0A6', fontSize: 12,
+        }
+      }, '挪车通知 v1.2.0'),
+    ),
+    BottomNav({ activeTab: 'settings', onTabChange: onNavigate || (() => {}) }),
+  );
+}
+
+/* ── Phone Frame ── */
+function PhoneFrame({ screen, label, children }) {
+  return React.createElement('div', {
+    style: {
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      flexShrink: 0,
+    }
+  },
+    React.createElement('div', { className: 'nordic-phone-label' }, label),
+    React.createElement('div', {
+      style: {
+        width: 320, height: 660,
+        background: '#1a1a1a', borderRadius: 38,
+        padding: 10,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.1)',
+        position: 'relative',
+      }
+    },
+      /* Camera punch hole */
+      React.createElement('div', {
+        style: {
+          position: 'absolute', top: 10, left: '50%',
+          transform: 'translateX(-50%)',
+          width: 10, height: 10, borderRadius: '50%',
+          background: '#0d0d0d', zIndex: 10,
+          border: '1px solid #333',
+        }
+      }),
+      /* Screen */
+      React.createElement('div', {
+        style: {
+          width: '100%', height: '100%',
+          background: '#fff', borderRadius: 30,
+          overflow: 'hidden', display: 'flex', flexDirection: 'column',
+          position: 'relative',
+        }
+      }, children),
+    ),
+  );
+}
+
+/* ── Main App ── */
+function App() {
+  /* Each phone has its own state: { tab, subScreen, subData } */
+  const [phones, setPhones] = useState({
+    p1: { tab: 'list', sub: null, subData: null },
+    p2: { tab: 'list', sub: 'edit', subData: null },
+    p3: { tab: 'rules', sub: null, subData: null },
+    p4: { tab: 'list', sub: 'alert', subData: null },
+    p5: { tab: 'history', sub: null, subData: null },
+    p6: { tab: 'settings', sub: null, subData: null },
+  });
+
+  const updatePhone = useCallback((id, updater) => {
+    setPhones(prev => ({
+      ...prev,
+      [id]: typeof updater === 'function' ? updater(prev[id]) : updater,
+    }));
+  }, []);
+
+  const phoneConfigs = [
+    { id: 'p1', label: 'a) 通知项列表 — 卡片式通知项' },
+    { id: 'p2', label: 'b) 通知项编辑 — 编辑表单' },
+    { id: 'p3', label: 'c) 触发规则管理 — 规则列表' },
+    { id: 'p4', label: 'd) 全屏提醒页 — 紧急报警' },
+    { id: 'p5', label: 'e) 提醒历史 — 历史记录' },
+    { id: 'p6', label: 'f) 设置页 — 系统设置' },
+  ];
+
+  function renderPhoneContent(phoneId) {
+    const p = phones[phoneId];
+    const nav = (tab) => updatePhone(phoneId, prev => ({ ...prev, tab, sub: null, subData: null }));
+    const goTo = (screen, data) => updatePhone(phoneId, prev => ({
+      ...prev,
+      sub: screen === 'alert' ? 'alert' : screen === 'edit' ? 'edit' : screen === 'rules' ? null : null,
+      tab: screen === 'rules' ? 'rules' : prev.tab,
+      subData: data || prev.subData,
+    }));
+    const goBack = () => updatePhone(phoneId, prev => ({ ...prev, sub: null }));
+
+    if (p.sub === 'alert') {
+      return React.createElement(FullScreenAlertScreen, {
+        onDismiss: () => updatePhone(phoneId, prev => ({ ...prev, sub: null })),
+        onBack: () => {},
+      });
+    }
+
+    if (p.sub === 'edit') {
+      return React.createElement(EditNotificationScreen, {
+        onBack: goBack,
+        onNavigate: goTo,
+      });
+    }
+
+    switch (p.tab) {
+      case 'list':
+        return React.createElement(NotificationListScreen, {
+          onNavigate: (screen, data) => {
+            if (screen === 'edit' || screen === 'alert') goTo(screen, data);
+            else nav(screen);
+          }
+        });
+      case 'rules':
+        return React.createElement(RuleManagementScreen, { onNavigate: nav });
+      case 'history':
+        return React.createElement(AlertHistoryScreen, { onNavigate: nav });
+      case 'settings':
+        return React.createElement(SettingsScreen, { onNavigate: nav });
+      default:
+        return React.createElement(NotificationListScreen, { onNavigate: goTo });
+    }
+  }
+
+  return React.createElement('div', {
+    style: {
+      maxWidth: 1500, margin: '0 auto', padding: '32px 24px 48px',
+    }
+  },
+    /* Header */
+    React.createElement('div', {
+      style: {
+        textAlign: 'center', marginBottom: 36,
+        padding: '20px 0',
+      }
+    },
+      React.createElement('h1', {
+        style: {
+          fontSize: 26, fontWeight: 300, color: '#202124',
+          letterSpacing: 2, marginBottom: 6,
+        }
+      }, '挪车通知'),
+      React.createElement('p', {
+        style: {
+          fontSize: 14, color: '#5F6368', fontWeight: 300,
+          letterSpacing: 0.5,
+        }
+      }, 'Nordic Cool Design · 六屏交互原型'),
+    ),
+
+    /* Phone grid */
+    React.createElement('div', {
+      style: {
+        display: 'flex', flexWrap: 'wrap', gap: 24,
+        justifyContent: 'center',
+      }
+    },
+      phoneConfigs.map(cfg =>
+        React.createElement(PhoneFrame, {
+          key: cfg.id,
+          screen: cfg.id,
+          label: cfg.label,
+        }, renderPhoneContent(cfg.id))
+      ),
+    ),
+
+    /* Footer */
+    React.createElement('div', {
+      style: {
+        textAlign: 'center', marginTop: 40, padding: '20px 0',
+        fontSize: 12, color: '#9AA0A6', borderTop: '1px solid #E8EAED',
+        letterSpacing: 0.3,
+      }
+    }, 'Android 原型 · 每部手机独立可交互 · 点击开关、按钮、导航栏体验'),
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+</script>
+</body>
+</html>

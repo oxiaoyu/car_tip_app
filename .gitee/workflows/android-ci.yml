@@ -1,0 +1,57 @@
+version: '1.0'
+name: Android CI
+variables:
+  GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true'
+global:
+  artifacts:
+    - path: app/build/outputs/apk/debug/
+      target: apk/debug/
+    - path: app/build/reports/lint-results-*.html
+      target: reports/lint/
+    - path: app/build/reports/tests/
+      target: reports/tests/
+  artifacts_retention_days: 7
+
+pipeline:
+  - stage:
+      name: lint
+      displayName: 代码规范检查
+      agent:
+        image: android:latest
+      steps:
+        - name: lint-check
+          displayName: 执行 Lint
+          run: |
+            chmod +x gradlew
+            ./gradlew lint
+            echo "Lint 检查完成"
+
+  - stage:
+      name: unit-test
+      displayName: 单元测试
+      agent:
+        image: android:latest
+      steps:
+        - name: run-tests
+          displayName: 执行单元测试
+          run: |
+            chmod +x gradlew
+            ./gradlew testDebugUnitTest
+            echo "单元测试完成"
+
+  - stage:
+      name: build-debug
+      displayName: 编译调试版APK
+      agent:
+        image: android:latest
+      steps:
+        - name: assemble-debug
+          displayName: assembleDebug
+          run: |
+            chmod +x gradlew
+            ./gradlew assembleDebug
+            echo "调试版 APK 编译完成"
+        - name: list-output
+          displayName: 列出产物
+          run: |
+            ls -lh app/build/outputs/apk/debug/
