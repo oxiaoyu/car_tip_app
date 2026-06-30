@@ -3,8 +3,9 @@ package com.parking.notification.service.alert
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -74,10 +75,7 @@ class AlertManager @Inject constructor(
             .setFullScreenIntent(fullScreenPendingIntent, true)
             .setAutoCancel(false)
             .setOngoing(true)
-            .setSound(soundUri, AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build())
+            .setSound(soundUri, AudioManager.STREAM_NOTIFICATION)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,

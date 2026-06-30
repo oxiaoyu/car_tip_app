@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.parking.notification.ui.theme.Primary
 import com.parking.notification.ui.theme.TextPrimary
 import com.parking.notification.ui.theme.TextSecondary
