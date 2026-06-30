@@ -12,26 +12,20 @@
     <path
         android:fillColor="#FFFFFF"
         android:pathData="M44,40 L64,40 L58,30 Q56,26 52,26 L48,26 Q44,26 42,30 Z" />
-    <!-- Left wheel -->
-    <circle
+    <!-- Left wheel outer ring -->
+    <path
         android:fillColor="#FFFFFF"
-        android:cx="40"
-        android:cy="56"
-        android:r="4" />
-    <circle
+        android:pathData="M40,52 m-4,0 a4,4 0,1 1,8 0 a4,4 0,1 1,-8 0" />
+    <!-- Left wheel hub -->
+    <path
         android:fillColor="#333333"
-        android:cx="40"
-        android:cy="56"
-        android:r="2.5" />
-    <!-- Right wheel -->
-    <circle
+        android:pathData="M40,53.5 m-2.5,0 a2.5,2.5 0,1 1,5 0 a2.5,2.5 0,1 1,-5 0" />
+    <!-- Right wheel outer ring -->
+    <path
         android:fillColor="#FFFFFF"
-        android:cx="68"
-        android:cy="56"
-        android:r="4" />
-    <circle
+        android:pathData="M68,52 m-4,0 a4,4 0,1 1,8 0 a4,4 0,1 1,-8 0" />
+    <!-- Right wheel hub -->
+    <path
         android:fillColor="#333333"
-        android:cx="68"
-        android:cy="56"
-        android:r="2.5" />
+        android:pathData="M68,53.5 m-2.5,0 a2.5,2.5 0,1 1,5 0 a2.5,2.5 0,1 1,-5 0" />
 </vector>
