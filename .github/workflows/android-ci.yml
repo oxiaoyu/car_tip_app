@@ -134,12 +134,18 @@ jobs:
       - name: Generate Gradle Wrapper
         run: gradle wrapper --gradle-version=8.5
 
-      - name: Decode keystore
+      - name: Setup keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        if: env.KEYSTORE_BASE64 != ''
         run: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
+          elif [ -f release.keystore ]; then
+            cp release.keystore app/keystore.jks
+            echo "Using pre-committed release.keystore"
+          else
+            echo "No keystore found, will use debug signing"
+          fi
 
       - name: Build release bundle
         run: ./gradlew bundleRelease
