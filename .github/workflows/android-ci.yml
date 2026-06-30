@@ -112,7 +112,7 @@ jobs:
           retention-days: 7
 
   build-release:
-    name: Build Release AAB
+    name: Build Release APK
     needs: unit-test
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
