@@ -1,5 +1,6 @@
 package com.parking.notification.service.alert
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -32,6 +33,7 @@ class AlertManager @Inject constructor(
         }
     }
 
+    @SuppressLint("MissingPermission")
     fun showAlert(
         context: Context,
         notificationItem: NotificationItemEntity,
