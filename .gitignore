@@ -18,6 +18,13 @@ local.properties
 # Internal tooling
 .omo/
 
+# React Native
+node_modules/
+.yarn/
+*.tsbuildinfo
+.metro-health-check*
+react-native.config.js
+
 # Misc
 *.log
 *.tmp

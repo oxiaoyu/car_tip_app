@@ -21,6 +21,10 @@
 -keepattributes *Annotation*, Signature, Exception
 -keep class kotlin.Metadata { *; }
 
+# Keep React Native
+-keep class com.facebook.react.** { *; }
+-keep class com.facebook.hermes.** { *; }
+
 # General Android rules
 -keep public class * extends android.app.Service
 -keep public class * extends android.content.BroadcastReceiver

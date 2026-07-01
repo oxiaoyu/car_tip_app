@@ -73,6 +73,18 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/DEPENDENCIES"
+            excludes += "/META-INF/LICENSE"
+            excludes += "/META-INF/LICENSE.txt"
+            excludes += "/META-INF/NOTICE"
+            excludes += "/META-INF/NOTICE.txt"
+            pickFirsts += "/META-INF/ASL2.0"
+            pickFirsts += "/META-INF/AL2.0"
+            pickFirsts += "/META-INF/LGPL2.1"
+        }
+        jniLibs {
+            // SQLCipher and React Native both bundle libc++_shared.so
+            pickFirsts += "**/libc++_shared.so"
         }
     }
 }
@@ -119,6 +131,9 @@ dependencies {
 
     // Logging
     implementation("com.jakewharton.timber:timber:5.0.1")
+
+    // React Native
+    implementation("com.facebook.react:react-android:0.86.0")
 
     // Core
     implementation("androidx.core:core-ktx:1.12.0")

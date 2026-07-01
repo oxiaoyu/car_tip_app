@@ -1,0 +1,23 @@
+{
+  "name": "car-tip-app-rn",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "react-native start",
+    "bundle-android": "react-native bundle --platform android --dev false --entry-file index.js --bundle-output ../app/src/main/assets/index.android.bundle --assets-dest ../app/src/main/res/"
+  },
+  "dependencies": {
+    "react": "^19.2.3",
+    "react-native": "0.86.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@babel/runtime": "^7.29.7",
+    "@react-native-community/cli": "^20.2.0",
+    "@react-native/babel-preset": "^0.86.0",
+    "@react-native/metro-config": "^0.86.0",
+    "@react-native/typescript-config": "^0.86.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.9.3"
+  }
+}

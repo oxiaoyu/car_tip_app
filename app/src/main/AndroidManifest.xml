@@ -42,6 +42,12 @@
             </intent-filter>
         </activity>
 
+        <!-- React Native Demo Activity -->
+        <activity
+            android:name=".ui.screen.rn.RnDemoActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ParkingNotification" />
+
         <!-- Full-screen Alert Activity -->
         <activity
             android:name=".ui.AlertFullScreenActivity"
