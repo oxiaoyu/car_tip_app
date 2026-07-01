@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
 /**
  * Minimal test screen to verify Compose rendering works.
@@ -26,7 +27,7 @@ fun TestScreen() {
             text = "App is running ✅",
             color = Color.White,
             fontWeight = FontWeight.Bold,
-            fontSize = androidx.compose.ui.unit.sp(24)
+            fontSize = 24.sp
         )
     }
 }
