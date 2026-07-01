@@ -17,6 +17,13 @@ sealed class Screen(
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector
 ) {
+    data object Test : Screen(
+        route = "test",
+        title = "测试",
+        selectedIcon = Icons.Filled.Home,
+        unselectedIcon = Icons.Outlined.Home
+    )
+
     data object NotificationList : Screen(
         route = "notification_list",
         title = "通知项",
