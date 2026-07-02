@@ -43,6 +43,8 @@ class FileLoggingTree(private val logFile: File) : Timber.DebugTree() {
 
         lock.withLock {
             try {
+                // Ensure parent directory exists (FileWriter does NOT create dirs)
+                logFile.parentFile?.mkdirs()
                 if (logFile.length() > MAX_LOG_SIZE) {
                     trimLog()
                 }

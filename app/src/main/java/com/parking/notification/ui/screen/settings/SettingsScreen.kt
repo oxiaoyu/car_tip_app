@@ -30,6 +30,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -39,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,13 +58,17 @@ import com.parking.notification.ui.theme.SwitchTrackActive
 import com.parking.notification.ui.theme.TextPrimary
 import com.parking.notification.ui.theme.TextSecondary
 import com.parking.notification.ui.theme.TopBarBackground
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen() {
     val context = LocalContext.current
     var serviceEnabled by remember { mutableStateOf(true) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -181,6 +188,10 @@ fun SettingsScreen() {
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                     context.startActivity(Intent.createChooser(intent, "分享日志"))
+                } else {
+                    scope.launch {
+                        snackbarHostState.showSnackbar("日志文件不存在，DEBUG 模式运行后会生成")
+                    }
                 }
             }
 
