@@ -20,37 +20,33 @@ class SmsProcessor @Inject constructor(
 ) {
     suspend fun process(senderNumber: String, messageBody: String) {
         val t0 = System.currentTimeMillis()
-        Timber.i("[TRACE] SMS_PROCESSOR: process() start at +%dms on thread=%s",
-            t0 - getAppStartTime(), Thread.currentThread().name)
+        Timber.i("[TRACE] SMS_PROCESSOR: process() start on thread=%s", Thread.currentThread().name)
         withContext(Dispatchers.IO) {
-            Timber.i("[TRACE] SMS_PROCESSOR: running UseCase at +%dms",
-                System.currentTimeMillis() - getAppStartTime())
+            val elapsed = { System.currentTimeMillis() - t0 }
+            Timber.i("[TRACE] SMS_PROCESSOR: running UseCase at +%dms", elapsed())
             val result = processIncomingSmsUseCase(senderNumber, messageBody)
 
             if (!result.matchResult.matched) {
-                Timber.i("[TRACE] SMS_PROCESSOR: no rule matched, done at +%dms",
-                    System.currentTimeMillis() - getAppStartTime())
+                Timber.i("[TRACE] SMS_PROCESSOR: no rule matched, done at +%dms", elapsed())
                 return@withContext
             }
 
-            Timber.i("[TRACE] SMS_PROCESSOR: matched! rule=%s, matchedItemIds=%s at +%dms",
-                result.matchResult.matchedRule, result.matchedItemIds,
-                System.currentTimeMillis() - getAppStartTime())
+            Timber.i("[TRACE] SMS_PROCESSOR: matched! rule='%s', matchedItemIds=%s at +%dms",
+                result.matchResult.matchedRuleKeyword, result.matchedItemIds, elapsed())
 
             val items = result.matchedItemIds.mapNotNull { id ->
                 notificationRepository.getById(id)
             }
 
             if (items.isEmpty()) {
-                Timber.w("[TRACE] SMS_PROCESSOR: matched but no notification items found at +%dms",
-                    System.currentTimeMillis() - getAppStartTime())
+                Timber.w("[TRACE] SMS_PROCESSOR: matched but no notification items found at +%dms", elapsed())
                 return@withContext
             }
 
             val enabledItem = items.firstOrNull { it.enabled }
             if (enabledItem != null) {
                 Timber.i("[TRACE] SMS_PROCESSOR: calling alertManager.showAlert() for '%s' at +%dms",
-                    enabledItem.name, System.currentTimeMillis() - getAppStartTime())
+                    enabledItem.name, elapsed())
                 alertManager.showAlert(
                     context = context,
                     notificationItem = enabledItem,
@@ -58,12 +54,8 @@ class SmsProcessor @Inject constructor(
                     messageContent = messageBody,
                     historyId = result.historyId ?: 0
                 )
-                Timber.i("[TRACE] SMS_PROCESSOR: showAlert() returned at +%dms",
-                    System.currentTimeMillis() - getAppStartTime())
+                Timber.i("[TRACE] SMS_PROCESSOR: showAlert() returned at +%dms", elapsed())
             }
         }
     }
-
-    private fun getAppStartTime(): Long =
-        System.currentTimeMillis() - 60000
 }

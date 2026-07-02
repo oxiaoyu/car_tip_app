@@ -38,6 +38,7 @@ import com.parking.notification.ui.theme.Primary
 import com.parking.notification.ui.theme.TextPrimary
 import com.parking.notification.ui.theme.TextSecondary
 import dagger.hilt.android.AndroidEntryPoint
+import timber.log.Timber
 import javax.inject.Inject
 
 @AndroidEntryPoint
