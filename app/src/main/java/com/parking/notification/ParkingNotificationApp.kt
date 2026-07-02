@@ -9,15 +9,14 @@ import com.facebook.react.ReactPackage
 import com.facebook.react.shell.MainReactPackage
 import com.parking.notification.data.database.AppDatabase
 import dagger.hilt.android.HiltAndroidApp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.File
 import java.io.FileWriter
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Provider
+import kotlin.concurrent.thread
 
 @HiltAndroidApp
 @Suppress("DEPRECATION")
@@ -65,15 +64,33 @@ class ParkingNotificationApp : Application(), Configuration.Provider, ReactAppli
             Thread.getDefaultUncaughtExceptionHandler()?.uncaughtException(thread, throwable)
         }
 
-        // Pre-warm SQLCipher database on background thread so first screen
-        // navigation that hits the DB doesn't block the main thread.
-        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+        // Pre-warm database on background thread. Block the main thread until
+        // it's done (with a timeout) so that ViewModel injection later never
+        // triggers AppDatabase.create() on the main thread.
+        val latch = CountDownLatch(1)
+        thread(isDaemon = true, name = "db-warmup") {
             try {
                 database.get().openHelper.writableDatabase
             } catch (e: Exception) {
                 Timber.w(e, "Database warm-up failed")
+                writeCrashLog("db-warmup", e)
+            } finally {
+                latch.countDown()
             }
         }
+        latch.await(10, TimeUnit.SECONDS)
+    }
+
+    private fun writeCrashLog(tag: String, throwable: Throwable) {
+        try {
+            val crashLog = File(filesDir, "crash.log")
+            FileWriter(crashLog, true).use { w ->
+                w.write("=== $tag ===\n")
+                w.write("${throwable.javaClass.name}: ${throwable.message}\n")
+                throwable.stackTrace.forEach { w.write("\tat $it\n") }
+                w.write("\n")
+            }
+        } catch (_: Exception) {}
     }
 
     override val workManagerConfiguration: Configuration
