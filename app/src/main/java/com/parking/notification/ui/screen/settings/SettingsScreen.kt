@@ -19,11 +19,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryFull
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PermPhoneMsg
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
+import androidx.core.content.FileProvider
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -46,6 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.io.File
 import com.parking.notification.ui.theme.Background
 import com.parking.notification.ui.theme.Primary
 import com.parking.notification.ui.theme.SwitchTrackActive
@@ -155,6 +158,29 @@ fun SettingsScreen() {
                         color = TextSecondary,
                         fontSize = 13.sp
                     )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            SettingsCard(
+                icon = Icons.Default.BugReport,
+                title = "导出调试日志",
+                subtitle = "分享日志文件给开发者排查问题"
+            ) {
+                val logFile = File(context.filesDir, "logs/parking_log.txt")
+                if (logFile.exists()) {
+                    val uri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        logFile
+                    )
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(intent, "分享日志"))
                 }
             }
 

@@ -1,6 +1,7 @@
 package com.parking.notification
 
 import android.app.Application
+import android.os.StrictMode
 import androidx.work.Configuration
 import androidx.hilt.work.HiltWorkerFactory
 import com.facebook.react.ReactApplication
@@ -8,15 +9,16 @@ import com.facebook.react.ReactNativeHost
 import com.facebook.react.ReactPackage
 import com.facebook.react.shell.MainReactPackage
 import com.parking.notification.data.database.AppDatabase
+import com.parking.notification.logging.FileLoggingTree
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.File
 import java.io.FileWriter
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Provider
-import kotlin.concurrent.thread
 
 @HiltAndroidApp
 @Suppress("DEPRECATION")
@@ -46,9 +48,25 @@ class ParkingNotificationApp : Application(), Configuration.Provider, ReactAppli
 
     override fun onCreate() {
         super.onCreate()
+
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
+            Timber.plant(FileLoggingTree(File(filesDir, "logs/parking_log.txt")))
+            // Catch main-thread violations in debug builds
+            StrictMode.setThreadPolicy(
+                StrictMode.ThreadPolicy.Builder()
+                    .detectAll()
+                    .penaltyLog()
+                    .build()
+            )
+            StrictMode.setVmPolicy(
+                StrictMode.VmPolicy.Builder()
+                    .detectAll()
+                    .penaltyLog()
+                    .build()
+            )
         }
+
         // Capture startup crash to file if Timber isn't available yet
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {
@@ -60,37 +78,19 @@ class ParkingNotificationApp : Application(), Configuration.Provider, ReactAppli
                     throwable.stackTrace.forEach { w.write("\tat $it\n") }
                 }
             } catch (_: Exception) {}
-            // Fallback to default handler to actually crash
             Thread.getDefaultUncaughtExceptionHandler()?.uncaughtException(thread, throwable)
         }
 
-        // Pre-warm database on background thread. Block the main thread until
-        // it's done (with a timeout) so that ViewModel injection later never
-        // triggers AppDatabase.create() on the main thread.
-        val latch = CountDownLatch(1)
-        thread(isDaemon = true, name = "db-warmup") {
+        // Background DB warmup — fire-and-forget. Room DAO Flows auto-switch to
+        // Room's background executor, so a cold DB only delays the first query
+        // emission, never the main thread.
+        CoroutineScope(Dispatchers.IO).launch {
             try {
                 database.get().openHelper.writableDatabase
             } catch (e: Exception) {
                 Timber.w(e, "Database warm-up failed")
-                writeCrashLog("db-warmup", e)
-            } finally {
-                latch.countDown()
             }
         }
-        latch.await(10, TimeUnit.SECONDS)
-    }
-
-    private fun writeCrashLog(tag: String, throwable: Throwable) {
-        try {
-            val crashLog = File(filesDir, "crash.log")
-            FileWriter(crashLog, true).use { w ->
-                w.write("=== $tag ===\n")
-                w.write("${throwable.javaClass.name}: ${throwable.message}\n")
-                throwable.stackTrace.forEach { w.write("\tat $it\n") }
-                w.write("\n")
-            }
-        } catch (_: Exception) {}
     }
 
     override val workManagerConfiguration: Configuration
