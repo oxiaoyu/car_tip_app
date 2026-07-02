@@ -99,7 +99,9 @@ class ParkingNotificationApp : Application(), Configuration.Provider, ReactAppli
 
             val appScope = CoroutineScope(Dispatchers.IO)
             appScope.launch {
-                Log.w("APP_INIT", "coroutine launch body executing at +${System.currentTimeMillis() - startupT0}ms")
+                // Use reflection to call DatabaseModule.initDatabase(this@ParkingNotificationApp)
+                // to avoid ART eagerly resolving SQLCipher native lib at class verification time.
+                AppDatabaseInitializer.initDatabase(this@ParkingNotificationApp)
             }
 
             val heartbeatT0 = System.currentTimeMillis()
