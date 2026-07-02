@@ -10,8 +10,13 @@ import com.facebook.react.ReactApplication
 import com.facebook.react.ReactNativeHost
 import com.facebook.react.ReactPackage
 import com.facebook.react.shell.MainReactPackage
+import com.parking.notification.di.DatabaseModule
 import com.parking.notification.logging.FileLoggingTree
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.File
 import java.io.FileWriter
@@ -43,6 +48,8 @@ class ParkingNotificationApp : Application(), Configuration.Provider, ReactAppli
 
     override val reactNativeHost: ReactNativeHost
         get() = mReactNativeHost
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         val t0 = System.currentTimeMillis()
@@ -88,12 +95,23 @@ class ParkingNotificationApp : Application(), Configuration.Provider, ReactAppli
                     throwable.stackTrace.forEach { w.write("\tat $it\n") }
                 }
             } catch (_: Exception) {}
-            // Also log to Timber if still alive
             try { Timber.e(throwable, "[CRASH] Uncaught on thread=%s", thread.name) } catch (_: Exception) {}
             defaultHandler?.uncaughtException(thread, throwable)
         }
 
-        // ---- 4. Startup heartbeat (detect main-thread stalls) ----
+        // ---- 4. Eager DB init on background thread (PREVENTS ANR) ----
+        // initDatabase() performs KeyStore IPC (1-5s on Chinese ROMs).
+        // Must run on IO thread BEFORE any ViewModel triggers provideAppDatabase().
+        appScope.launch {
+            Timber.i("[TRACE] APP: launching eager DB init at +%dms on thread=%s",
+                System.currentTimeMillis() - startupT0, Thread.currentThread().name)
+            val dbT0 = System.currentTimeMillis()
+            DatabaseModule.initDatabase(this@ParkingNotificationApp)
+            Timber.i("[TRACE] APP: eager DB init completed at +%dms (took %dms)",
+                System.currentTimeMillis() - startupT0, System.currentTimeMillis() - dbT0)
+        }
+
+        // ---- 5. Startup heartbeat ----
         val heartbeatT0 = System.currentTimeMillis()
         val timer = Timer("heartbeat", true)
         timer.scheduleAtFixedRate(object : TimerTask() {
