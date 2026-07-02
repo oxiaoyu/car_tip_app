@@ -63,8 +63,11 @@ class FileLoggingTree(private val logFile: File) : Timber.DebugTree() {
                 // Find the first newline after the truncation point so partial
                 // lines are discarded.
                 val start = tail.size - (MAX_LOG_SIZE / 2)
-                val firstNewline = tail.indexOf('\n'.code.toByte(), start)
-                if (firstNewline < 0) tail else tail.copyOfRange(firstNewline + 1, tail.size)
+                // Kotlin 2.1 removed ByteArray.indexOf(element, startIndex) overload
+                val sub = tail.copyOfRange(start, tail.size)
+                val firstNewline = sub.indexOf('\n'.code.toByte())
+                val keepFrom = if (firstNewline < 0) 0 else start + firstNewline + 1
+                if (firstNewline < 0) tail else tail.copyOfRange(keepFrom, tail.size)
             } else tail
             logFile.writeBytes(keepBytes)
         } catch (_: Exception) {}
