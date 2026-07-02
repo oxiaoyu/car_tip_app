@@ -7,6 +7,10 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.parking.notification.R
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -19,9 +23,15 @@ class SmsListenerService : Service() {
     @Inject
     lateinit var notificationChannels: com.parking.notification.service.alert.NotificationChannels
 
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun onCreate() {
         super.onCreate()
-        notificationChannels.createChannels()
+        // Channel creation is IPC to NotificationManagerService.
+        // Run on background to avoid blocking main thread on slow ROMs.
+        serviceScope.launch {
+            notificationChannels.createChannels()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

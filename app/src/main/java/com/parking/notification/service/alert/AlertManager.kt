@@ -8,6 +8,8 @@ import android.media.AudioManager
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.HandlerThread
 import android.os.VibrationEffect
 import android.os.Vibrator
 import androidx.core.app.NotificationCompat
@@ -24,6 +26,10 @@ class AlertManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val notificationChannels: NotificationChannels
 ) {
+    /** Dedicated worker thread for notification IPC (NotificationManager, PendingIntent). */
+    private val notificationThread = HandlerThread("notification-worker").apply { start() }
+    private val notificationHandler = Handler(notificationThread.looper)
+
     private val vibrator: Vibrator? by lazy {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
@@ -41,8 +47,6 @@ class AlertManager @Inject constructor(
         messageContent: String,
         historyId: Long
     ) {
-        notificationChannels.createChannels()
-
         val fullScreenIntent = Intent(context, com.parking.notification.ui.AlertFullScreenActivity::class.java).apply {
             putExtra(EXTRA_HISTORY_ID, historyId)
             putExtra(EXTRA_SENDER, senderNumber)
@@ -90,14 +94,27 @@ class AlertManager @Inject constructor(
             vibrate()
         }
 
-        val notification = builder.build()
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_TAG, historyId.toInt(), notification)
-        Timber.i("Alert notification shown for history=%d, item=%s", historyId, notificationItem.name)
+        notificationHandler.post {
+            notificationChannels.createChannels()
+            try {
+                val notification = builder.build()
+                NotificationManagerCompat.from(context).notify(NOTIFICATION_TAG, historyId.toInt(), notification)
+                Timber.i("Alert notification shown for history=%d, item=%s", historyId, notificationItem.name)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to show alert notification for history=%d", historyId)
+            }
+        }
     }
 
     fun dismissAlert(historyId: Long) {
-        NotificationManagerCompat.from(context).cancel(NOTIFICATION_TAG, historyId.toInt())
-        vibrator?.cancel()
+        notificationHandler.post {
+            try {
+                NotificationManagerCompat.from(context).cancel(NOTIFICATION_TAG, historyId.toInt())
+                vibrator?.cancel()
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to dismiss alert for history=%d", historyId)
+            }
+        }
     }
 
     private fun vibrate() {
