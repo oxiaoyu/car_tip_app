@@ -12,6 +12,9 @@ import com.facebook.react.ReactPackage
 import com.facebook.react.shell.MainReactPackage
 import com.parking.notification.logging.FileLoggingTree
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.File
 import java.io.FileWriter
@@ -92,6 +95,11 @@ class ParkingNotificationApp : Application(), Configuration.Provider, ReactAppli
                 } catch (_: Exception) {}
                 try { Timber.e(throwable, "[CRASH] Uncaught on thread=%s", thread.name) } catch (_: Exception) {}
                 defaultHandler?.uncaughtException(thread, throwable)
+            }
+
+            val appScope = CoroutineScope(Dispatchers.IO)
+            appScope.launch {
+                Log.w("APP_INIT", "coroutine launch body executing at +${System.currentTimeMillis() - startupT0}ms")
             }
 
             val heartbeatT0 = System.currentTimeMillis()
