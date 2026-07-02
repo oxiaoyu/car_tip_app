@@ -4,37 +4,33 @@ import com.parking.notification.data.entity.TriggerRuleEntity
 import com.parking.notification.data.repository.RuleRepository
 import com.parking.notification.domain.model.MatchResult
 import com.parking.notification.domain.model.MatchType
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Core rule matching engine.
- * Iterates all rules and checks if an incoming SMS matches any trigger rule
- * by sender phone number keyword and/or message content keyword.
- */
 @Singleton
 class RuleMatcherEngine @Inject constructor(
     private val ruleRepository: RuleRepository
 ) {
 
-    /**
-     * Match an incoming SMS against all active rules.
-     * Returns the first matching result, or MatchResult(matched=false) if none.
-     */
     suspend fun match(senderNumber: String, messageContent: String): MatchResult {
+        val t0 = System.currentTimeMillis()
+        Timber.i("[TRACE] RULE_ENGINE: match() start on thread=%s", Thread.currentThread().name)
         val rules = ruleRepository.getAll()
+        Timber.i("[TRACE] RULE_ENGINE: loaded %d rules at +%dms", rules.size, System.currentTimeMillis() - t0)
 
         for (rule in rules) {
             val senderMatch = matchPhoneKeyword(senderNumber, rule)
             val contentMatch = matchContentKeyword(messageContent, rule)
 
-            // A rule matches if either sender or content matches (OR logic)
             if (senderMatch || contentMatch) {
                 val matchType = when {
                     senderMatch && contentMatch -> MatchType.BOTH_MATCHED
                     senderMatch -> MatchType.SENDER_MATCHED
                     else -> MatchType.CONTENT_MATCHED
                 }
+                Timber.i("[TRACE] RULE_ENGINE: matched rule=%d '%s' at +%dms, type=%s",
+                    rule.id, rule.phoneKeyword, System.currentTimeMillis() - t0, matchType)
                 return MatchResult(
                     matched = true,
                     matchedRuleId = rule.id,
@@ -44,6 +40,8 @@ class RuleMatcherEngine @Inject constructor(
             }
         }
 
+        Timber.i("[TRACE] RULE_ENGINE: no match found at +%dms (%d rules checked)",
+            System.currentTimeMillis() - t0, rules.size)
         return MatchResult(matched = false)
     }
 

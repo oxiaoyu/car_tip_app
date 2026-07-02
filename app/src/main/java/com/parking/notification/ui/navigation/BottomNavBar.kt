@@ -12,9 +12,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.parking.notification.ui.theme.Primary
 import com.parking.notification.ui.theme.TextSecondary
 import com.parking.notification.ui.theme.BottomNavBackground
+import timber.log.Timber
 
 @Composable
-fun BottomNavBar(navController: NavController) {
+fun BottomNavBar(navController: NavController, appStartT0: Long = System.currentTimeMillis()) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -27,6 +28,10 @@ fun BottomNavBar(navController: NavController) {
                 selected = selected,
                 onClick = {
                     if (currentRoute != screen.route) {
+                        val tapT0 = System.currentTimeMillis()
+                        Timber.i("[TRACE] TAB_SWITCH: tapping '%s' at +%dms (from '%s'), thread=%s",
+                            screen.route, System.currentTimeMillis() - appStartT0,
+                            currentRoute, Thread.currentThread().name)
                         navController.navigate(screen.route) {
                             popUpTo(navController.graph.startDestinationId) {
                                 saveState = true
@@ -34,6 +39,9 @@ fun BottomNavBar(navController: NavController) {
                             launchSingleTop = true
                             restoreState = true
                         }
+                        Timber.i("[TRACE] TAB_SWITCH: navigate() returned at +%dms, took %dms",
+                            System.currentTimeMillis() - appStartT0,
+                            System.currentTimeMillis() - tapT0)
                     }
                 },
                 icon = {

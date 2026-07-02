@@ -1,6 +1,7 @@
 package com.parking.notification.di
 
 import android.content.Context
+import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import androidx.room.Room
@@ -15,6 +16,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import net.sqlcipher.database.SupportFactory
+import timber.log.Timber
 import java.security.KeyStore
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -31,8 +33,14 @@ object DatabaseModule {
 
     @JvmStatic
     fun initDatabase(context: Context) {
-        if (cachedDatabase.get() != null) return
+        val t0 = System.currentTimeMillis()
+        Timber.i("[TRACE] DB_INIT: initDatabase() called on thread=%s", Thread.currentThread().name)
+        if (cachedDatabase.get() != null) {
+            Timber.i("[TRACE] DB_INIT: already cached, skip at +%dms", System.currentTimeMillis() - t0)
+            return
+        }
         val hexKey = loadOrGenerateDatabaseKey()
+        Timber.i("[TRACE] DB_INIT: key loaded at +%dms, building Room DB...", System.currentTimeMillis() - t0)
         val db = Room.databaseBuilder(
             context,
             AppDatabase::class.java,
@@ -42,9 +50,12 @@ object DatabaseModule {
             .build()
         cachedDatabase.set(db)
         initLatch.countDown()
+        Timber.i("[TRACE] DB_INIT: complete at +%dms, thread=%s", System.currentTimeMillis() - t0, Thread.currentThread().name)
     }
 
     private fun loadOrGenerateDatabaseKey(): String {
+        val t0 = System.currentTimeMillis()
+        Timber.i("[TRACE] DB_KEY: loadOrGenerateDatabaseKey() start on thread=%s", Thread.currentThread().name)
         val passphrase = KeyGenParameterSpec.Builder(
             "parking_notification_db_key", KeyProperties.PURPOSE_ENCRYPT
         )
@@ -54,27 +65,47 @@ object DatabaseModule {
         val keyStore = KeyStore.getInstance("AndroidKeyStore")
         keyStore.load(null)
         if (!keyStore.containsAlias("parking_notification_db_key")) {
+            Timber.i("[TRACE] DB_KEY: key not found, generating new AES key via KeyStore IPC...")
             val keyGenerator = KeyGenerator.getInstance("AES", "AndroidKeyStore")
             keyGenerator.init(passphrase)
             keyGenerator.generateKey()
+            Timber.i("[TRACE] DB_KEY: new AES key generated at +%dms", System.currentTimeMillis() - t0)
+        } else {
+            Timber.i("[TRACE] DB_KEY: existing key found in KeyStore at +%dms", System.currentTimeMillis() - t0)
         }
         val secretKey = (keyStore.getEntry("parking_notification_db_key", null)
             as KeyStore.SecretKeyEntry).secretKey
-        return secretKey.encoded.joinToString("") { "%02x".format(it) }
+        val result = secretKey.encoded.joinToString("") { "%02x".format(it) }
+        Timber.i("[TRACE] DB_KEY: complete at +%dms, sdk=%d, mfr=%s", System.currentTimeMillis() - t0, Build.VERSION.SDK_INT, Build.MANUFACTURER)
+        return result
     }
 
     @Provides
     @Singleton
     fun provideAppDatabase(): AppDatabase {
+        val t0 = System.currentTimeMillis()
+        val thread = Thread.currentThread()
+        Timber.i("[TRACE] DB_PROVIDE: provideAppDatabase() called on thread=%s", thread.name)
         val db = cachedDatabase.get()
-        if (db != null) return db
+        if (db != null) {
+            Timber.i("[TRACE] DB_PROVIDE: instant cache hit at +%dms", System.currentTimeMillis() - t0)
+            return db
+        }
+        Timber.w("[TRACE] DB_PROVIDE: cache MISS — waiting on CountDownLatch (thread=%s)", thread.name)
+        var waited = false
         try {
-            initLatch.await(15, TimeUnit.SECONDS)
+            waited = initLatch.await(15, TimeUnit.SECONDS)
         } catch (_: InterruptedException) {
             Thread.currentThread().interrupt()
         }
-        return cachedDatabase.get()
-            ?: throw IllegalStateException("AppDatabase init timed out after 15s")
+        val result = cachedDatabase.get()
+        if (result != null) {
+            Timber.i("[TRACE] DB_PROVIDE: latch released after %dms, waited=%s, thread=%s",
+                System.currentTimeMillis() - t0, waited, thread.name)
+        } else {
+            Timber.e("[TRACE] DB_PROVIDE: TIMEOUT! 15s elapsed, DB init may be blocked by KeyStore IPC, thread=%s", thread.name)
+        }
+        return result ?: throw IllegalStateException("AppDatabase init timed out after 15s")
     }
 
     @Provides fun provideNotificationDao(db: AppDatabase): NotificationDao = db.notificationDao()

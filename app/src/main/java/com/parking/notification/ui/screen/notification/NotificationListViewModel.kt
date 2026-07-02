@@ -9,12 +9,18 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
 class NotificationListViewModel @Inject constructor(
     private val manageNotificationItemUseCase: ManageNotificationItemUseCase
 ) : ViewModel() {
+
+    init {
+        Timber.i("[TRACE] VM_CREATE: NotificationListViewModel initialized on thread=%s",
+            Thread.currentThread().name)
+    }
 
     val items: StateFlow<List<NotificationItemEntity>> =
         manageNotificationItemUseCase.getAllFlow()

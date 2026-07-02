@@ -47,6 +47,9 @@ class AlertManager @Inject constructor(
         messageContent: String,
         historyId: Long
     ) {
+        val t0 = System.currentTimeMillis()
+        Timber.i("[TRACE] ALERT_MGR: showAlert(history=%d, item=%s) on thread=%s",
+            historyId, notificationItem.name, Thread.currentThread().name)
         val fullScreenIntent = Intent(context, com.parking.notification.ui.AlertFullScreenActivity::class.java).apply {
             putExtra(EXTRA_HISTORY_ID, historyId)
             putExtra(EXTRA_SENDER, senderNumber)
@@ -94,25 +97,37 @@ class AlertManager @Inject constructor(
             vibrate()
         }
 
+        val postedT0 = System.currentTimeMillis()
         notificationHandler.post {
-            notificationChannels.createChannels()
             try {
+                notificationChannels.createChannels()
+                Timber.i("[TRACE] ALERT_MGR: channels ensured at +%dms (total +%dms from showAlert call)",
+                    System.currentTimeMillis() - postedT0, System.currentTimeMillis() - t0)
                 val notification = builder.build()
+                val notifyT0 = System.currentTimeMillis()
                 NotificationManagerCompat.from(context).notify(NOTIFICATION_TAG, historyId.toInt(), notification)
-                Timber.i("Alert notification shown for history=%d, item=%s", historyId, notificationItem.name)
+                Timber.i("[TRACE] ALERT_MGR: NotificationManager.notify() done at +%dms (IPC took %dms), thread=%s",
+                    System.currentTimeMillis() - t0, System.currentTimeMillis() - notifyT0,
+                    Thread.currentThread().name)
             } catch (e: Exception) {
-                Timber.w(e, "Failed to show alert notification for history=%d", historyId)
+                Timber.w(e, "[TRACE] ALERT_MGR: Failed to show alert notification at +%dms", System.currentTimeMillis() - t0)
             }
         }
     }
 
     fun dismissAlert(historyId: Long) {
+        Timber.i("[TRACE] ALERT_MGR: dismissAlert(history=%d) on thread=%s", historyId, Thread.currentThread().name)
+        val t0 = System.currentTimeMillis()
         notificationHandler.post {
             try {
+                val cancelT0 = System.currentTimeMillis()
                 NotificationManagerCompat.from(context).cancel(NOTIFICATION_TAG, historyId.toInt())
+                Timber.i("[TRACE] ALERT_MGR: cancel() IPC took %dms, thread=%s",
+                    System.currentTimeMillis() - cancelT0, Thread.currentThread().name)
                 vibrator?.cancel()
+                Timber.i("[TRACE] ALERT_MGR: dismissAlert complete at +%dms", System.currentTimeMillis() - t0)
             } catch (e: Exception) {
-                Timber.w(e, "Failed to dismiss alert for history=%d", historyId)
+                Timber.w(e, "[TRACE] ALERT_MGR: Failed to dismiss alert at +%dms", System.currentTimeMillis() - t0)
             }
         }
     }

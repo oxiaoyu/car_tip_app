@@ -47,12 +47,17 @@ class AlertFullScreenActivity : ComponentActivity() {
     lateinit var alertManager: AlertManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val t0 = System.currentTimeMillis()
         super.onCreate(savedInstanceState)
+        Timber.i("[TRACE] ALERT_FS: AlertFullScreenActivity.onCreate() on thread=%s", Thread.currentThread().name)
 
         val historyId = intent.getLongExtra(AlertManager.EXTRA_HISTORY_ID, -1L)
         val sender = intent.getStringExtra(AlertManager.EXTRA_SENDER) ?: "未知号码"
         val message = intent.getStringExtra(AlertManager.EXTRA_MESSAGE) ?: ""
         val itemName = intent.getStringExtra(AlertManager.EXTRA_ITEM_NAME) ?: "挪车通知"
+
+        Timber.i("[TRACE] ALERT_FS: intent extras loaded at +%dms, historyId=%d, sender=%s",
+            System.currentTimeMillis() - t0, historyId, sender)
 
         setContent {
             AlertFullScreen(

@@ -26,15 +26,22 @@ class SmsListenerService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
+        val t0 = System.currentTimeMillis()
         super.onCreate()
+        Timber.i("[TRACE] SMS_SERVICE: onCreate on thread=%s", Thread.currentThread().name)
         // Channel creation is IPC to NotificationManagerService.
         // Run on background to avoid blocking main thread on slow ROMs.
         serviceScope.launch {
+            Timber.i("[TRACE] SMS_SERVICE: creating notification channels at +%dms...", System.currentTimeMillis() - t0)
             notificationChannels.createChannels()
+            Timber.i("[TRACE] SMS_SERVICE: channels created at +%dms", System.currentTimeMillis() - t0)
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val t0 = System.currentTimeMillis()
+        Timber.i("[TRACE] SMS_SERVICE: onStartCommand on thread=%s", Thread.currentThread().name)
+
         val notificationIntent = packageManager.getLaunchIntentForPackage(packageName)
         val pendingIntent = PendingIntent.getActivity(
             this, 0, notificationIntent,
@@ -50,7 +57,10 @@ class SmsListenerService : Service() {
             .setSilent(true)
             .build()
 
+        Timber.i("[TRACE] SMS_SERVICE: calling startForeground() at +%dms...", System.currentTimeMillis() - t0)
         startForeground(NOTIFICATION_ID_SERVICE, notification)
+        Timber.i("[TRACE] SMS_SERVICE: startForeground() returned at +%dms (took %dms), thread=%s",
+            System.currentTimeMillis() - t0, System.currentTimeMillis() - t0, Thread.currentThread().name)
 
         // Service runs indefinitely; restart if killed
         return START_STICKY

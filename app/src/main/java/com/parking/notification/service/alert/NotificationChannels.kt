@@ -7,39 +7,41 @@ import android.media.AudioAttributes
 import android.net.Uri
 import android.os.Build
 import com.parking.notification.R
+import timber.log.Timber
 
 class NotificationChannels(private val context: Context) {
 
     fun createChannels() {
+        val t0 = System.currentTimeMillis()
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Service channel (low importance, silent)
         val serviceChannel = NotificationChannel(
             CHANNEL_SERVICE,
             context.getString(R.string.channel_service),
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "挪车通知后台监听服务"
             setSound(null, null)
             enableVibration(false)
         }
         manager.createNotificationChannel(serviceChannel)
 
-        // Alert channel (high importance, customizable sound/vibration)
         val alertChannel = NotificationChannel(
             CHANNEL_ALERT,
             context.getString(R.string.channel_alert),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "挪车提醒通知"
             enableVibration(true)
             enableLights(true)
             setShowBadge(true)
         }
         manager.createNotificationChannel(alertChannel)
+
+        Timber.i("[TRACE] NOTIF_CHANNELS: createChannels() took %dms, thread=%s, sdk=%d",
+            System.currentTimeMillis() - t0, Thread.currentThread().name, Build.VERSION.SDK_INT)
     }
 
     fun updateAlertChannelSound(soundUri: Uri?) {
+        val t0 = System.currentTimeMillis()
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channel = manager.getNotificationChannel(CHANNEL_ALERT) ?: return
         if (soundUri != null) {
@@ -51,6 +53,7 @@ class NotificationChannels(private val context: Context) {
             channel.setSound(null, null)
         }
         manager.createNotificationChannel(channel)
+        Timber.i("[TRACE] NOTIF_CHANNELS: updateAlertChannelSound() took %dms", System.currentTimeMillis() - t0)
     }
 
     fun updateAlertChannelVibration(enable: Boolean) {

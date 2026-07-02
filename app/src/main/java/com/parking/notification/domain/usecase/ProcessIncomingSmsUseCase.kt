@@ -28,20 +28,23 @@ class ProcessIncomingSmsUseCase @Inject constructor(
         senderNumber: String,
         messageContent: String
     ): ProcessingResult {
-        // Step 1: Match against rules
+        val t0 = System.currentTimeMillis()
+        Timber.i("[TRACE] USE_CASE: ProcessIncomingSmsUseCase start on thread=%s", Thread.currentThread().name)
+
         val matchResult = ruleMatcherEngine.match(senderNumber, messageContent)
+        Timber.i("[TRACE] USE_CASE: ruleMatcherEngine.match() at +%dms, matched=%s",
+            System.currentTimeMillis() - t0, matchResult.matched)
 
         if (!matchResult.matched) {
-            Timber.d("No rule matched for SMS from $senderNumber")
             return ProcessingResult(matchResult = matchResult)
         }
 
-        // Step 2: Find notification items linked to the matched rule
         val itemIds = matchResult.matchedRuleId?.let {
             ruleRepository.getItemIdsForRule(it)
         } ?: emptyList()
+        Timber.i("[TRACE] USE_CASE: ruleRepository.getItemIdsForRule() at +%dms, ids=%s",
+            System.currentTimeMillis() - t0, itemIds)
 
-        // Step 3: Record history
         val historyId = historyRepository.insert(
             NotificationHistoryEntity(
                 senderNumber = senderNumber,
@@ -50,9 +53,8 @@ class ProcessIncomingSmsUseCase @Inject constructor(
                 triggeredAt = System.currentTimeMillis()
             )
         )
-
-        Timber.i("SMS matched! Rule=%s, Items=%s, History=%d",
-            matchResult.matchedRuleKeyword, itemIds, historyId)
+        Timber.i("[TRACE] USE_CASE: historyRepository.insert() at +%dms, historyId=%d, matchedRule='%s'",
+            System.currentTimeMillis() - t0, historyId, matchResult.matchedRuleKeyword)
 
         return ProcessingResult(
             matchResult = matchResult,

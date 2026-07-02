@@ -9,12 +9,18 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
 class RuleListViewModel @Inject constructor(
     private val manageRuleUseCase: ManageRuleUseCase
 ) : ViewModel() {
+
+    init {
+        Timber.i("[TRACE] VM_CREATE: RuleListViewModel initialized on thread=%s",
+            Thread.currentThread().name)
+    }
 
     val rules: StateFlow<List<TriggerRuleEntity>> =
         manageRuleUseCase.getAllFlow()
