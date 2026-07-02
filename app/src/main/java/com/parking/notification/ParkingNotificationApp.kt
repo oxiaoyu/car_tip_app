@@ -8,17 +8,12 @@ import com.facebook.react.ReactApplication
 import com.facebook.react.ReactNativeHost
 import com.facebook.react.ReactPackage
 import com.facebook.react.shell.MainReactPackage
-import com.parking.notification.data.database.AppDatabase
 import com.parking.notification.logging.FileLoggingTree
 import dagger.hilt.android.HiltAndroidApp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.File
 import java.io.FileWriter
 import javax.inject.Inject
-import javax.inject.Provider
 
 @HiltAndroidApp
 @Suppress("DEPRECATION")
@@ -26,9 +21,6 @@ class ParkingNotificationApp : Application(), Configuration.Provider, ReactAppli
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
-
-    @Inject
-    lateinit var database: Provider<AppDatabase>
 
     private val mReactNativeHost: ReactNativeHost =
         object : ReactNativeHost(this) {
@@ -49,10 +41,14 @@ class ParkingNotificationApp : Application(), Configuration.Provider, ReactAppli
     override fun onCreate() {
         super.onCreate()
 
+        // Ensure logs directory exists before planting FileLoggingTree.
+        // Failing to create parent dirs causes FileWriter to throw silently.
+        val logDir = File(filesDir, "logs")
+        logDir.mkdirs()
+
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
-            Timber.plant(FileLoggingTree(File(filesDir, "logs/parking_log.txt")))
-            // Catch main-thread violations in debug builds
+            Timber.plant(FileLoggingTree(File(logDir, "parking_log.txt")))
             StrictMode.setThreadPolicy(
                 StrictMode.ThreadPolicy.Builder()
                     .detectAll()
@@ -79,17 +75,6 @@ class ParkingNotificationApp : Application(), Configuration.Provider, ReactAppli
                 }
             } catch (_: Exception) {}
             Thread.getDefaultUncaughtExceptionHandler()?.uncaughtException(thread, throwable)
-        }
-
-        // Background DB warmup — fire-and-forget. Room DAO Flows auto-switch to
-        // Room's background executor, so a cold DB only delays the first query
-        // emission, never the main thread.
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                database.get().openHelper.writableDatabase
-            } catch (e: Exception) {
-                Timber.w(e, "Database warm-up failed")
-            }
         }
     }
 
